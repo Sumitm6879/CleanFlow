@@ -45,19 +45,39 @@ const mockActivities: Activity[] = [
 ];
 
 export function UserProfile() {
-  const { user, signOut } = useAuth();
+  const { user, signOut, profile: authProfile } = useAuth();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [userReports, setUserReports] = useState<Report[]>([]);
   const [userRank, setUserRank] = useState<{ rank: number; total: number } | null>(null);
   const [joinedDrives, setJoinedDrives] = useState<DriveParticipant[]>([]);
   const [loading, setLoading] = useState(true);
+  const [drivesLoading, setDrivesLoading] = useState(false);
 
   useEffect(() => {
     if (user) {
       loadUserData();
     }
   }, [user]);
+
+  // Reload data when the auth profile changes (e.g., after profile refresh)
+  useEffect(() => {
+    if (user && authProfile) {
+      // Reload joined drives data when profile updates
+      const loadJoinedDrives = async () => {
+        try {
+          setDrivesLoading(true);
+          const dbJoinedDrives = await getUserDriveParticipation(user.id);
+          setJoinedDrives(dbJoinedDrives);
+        } catch (error) {
+          console.error('Error loading joined drives:', error);
+        } finally {
+          setDrivesLoading(false);
+        }
+      };
+      loadJoinedDrives();
+    }
+  }, [authProfile, user]);
 
   const loadUserData = async () => {
     if (!user) return;
@@ -108,6 +128,7 @@ export function UserProfile() {
           // Load joined drives
           const dbJoinedDrives = await getUserDriveParticipation(user.id);
           setJoinedDrives(dbJoinedDrives);
+          console.log('Loaded', dbJoinedDrives.length, 'joined drives for user');
 
           // Calculate real rank
           const leaderboard = await getLeaderboard(500);
@@ -323,57 +344,6 @@ export function UserProfile() {
             </div>
           </div>
 
-          {/* Joined Drives */}
-          <div className="mb-6">
-            <h2 className="text-xl font-bold text-[#121717] mb-3 px-4">Current Drives</h2>
-
-            <div className="space-y-4 px-4">
-              {joinedDrives.length > 0 ? (
-                joinedDrives.map((participation) => {
-                  const drive = (participation as any).drive;
-                  if (!drive) return null;
-
-                  return (
-                    <div key={participation.id} className="flex overflow-hidden rounded-xl bg-white shadow-sm border p-4">
-                      <img
-                        src={drive.images?.[0] || "https://images.unsplash.com/photo-1583212292454-1fe6229603b7?w=120&h=80&fit=crop"}
-                        alt={drive.title}
-                        className="w-24 h-16 object-cover rounded-lg"
-                      />
-                      <div className="flex-1 ml-4 space-y-1">
-                        <h3 className="text-base font-bold text-[#121717]">{drive.title}</h3>
-                        <p className="text-sm text-[#61808A]">
-                          {new Date(drive.date).toLocaleDateString()} at {drive.time}
-                        </p>
-                        <div className="flex items-center space-x-2">
-                          <span className={`px-2 py-1 text-xs rounded-full font-medium ${
-                            participation.status === 'registered' ? 'bg-blue-100 text-blue-800' :
-                            participation.status === 'attended' ? 'bg-green-100 text-green-800' :
-                            'bg-gray-100 text-gray-800'
-                          }`}>
-                            {participation.status.charAt(0).toUpperCase() + participation.status.slice(1)}
-                          </span>
-                          <span className="text-xs text-[#61808A]">
-                            {drive.registered_volunteers}/{drive.max_volunteers} volunteers
-                          </span>
-                        </div>
-                      </div>
-                      <Button asChild variant="outline" size="sm" className="self-center">
-                        <Link to={`/drive/${drive.id}`}>View Details</Link>
-                      </Button>
-                    </div>
-                  );
-                })
-              ) : (
-                <div className="p-8 text-center text-[#61808A] bg-[#F0F2F5] rounded-xl">
-                  <p>No active drive registrations</p>
-                  <p className="text-sm mt-1">
-                    <Link to="/organize" className="text-[#12B5ED] hover:underline">Browse cleanup drives</Link> to join one!
-                  </p>
-                </div>
-              )}
-            </div>
-          </div>
 
           {/* Recent Activity */}
           <div className="mb-6">

@@ -60,7 +60,7 @@ export interface Database {
           latitude: number
           longitude: number
           severity: 'low' | 'moderate' | 'severe'
-          status: 'pending' | 'approved' | 'rejected'
+          status: 'pending' | 'approved' | 'rejected' | 'resolved'
           type: 'pollution' | 'cleanup'
           photos: string[]
           created_at: string
@@ -77,7 +77,7 @@ export interface Database {
           latitude: number
           longitude: number
           severity: 'low' | 'moderate' | 'severe'
-          status?: 'pending' | 'approved' | 'rejected'
+          status?: 'pending' | 'approved' | 'rejected' | 'resolved'
           type?: 'pollution' | 'cleanup'
           photos?: string[]
           created_at?: string
@@ -93,7 +93,7 @@ export interface Database {
           latitude?: number
           longitude?: number
           severity?: 'low' | 'moderate' | 'severe'
-          status?: 'pending' | 'approved' | 'rejected'
+          status?: 'pending' | 'approved' | 'rejected' | 'resolved'
           type?: 'pollution' | 'cleanup'
           photos?: string[]
           updated_at?: string

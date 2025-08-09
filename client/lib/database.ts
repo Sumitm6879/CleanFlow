@@ -372,10 +372,68 @@ export async function createReport(report: ReportInsert): Promise<Report | null>
       console.log('✅ Activity created successfully, user earned:', points, 'points');
     }
 
+    // Update user profile to increment reports_submitted and impact_score
+    console.log('📊 Updating user profile stats...');
+    try {
+      const { data: currentProfile, error: profileError } = await supabase
+        .from('profiles')
+        .select('reports_submitted, impact_score')
+        .eq('id', report.user_id)
+        .single();
+
+      if (!profileError && currentProfile) {
+        const { error: updateError } = await supabase
+          .from('profiles')
+          .update({
+            reports_submitted: currentProfile.reports_submitted + 1,
+            impact_score: currentProfile.impact_score + points,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', report.user_id);
+
+        if (updateError) {
+          console.warn('Failed to update profile stats:', updateError);
+        } else {
+          console.log('✅ Profile stats updated successfully');
+        }
+      } else {
+        console.warn('Could not fetch current profile for stats update:', profileError);
+      }
+    } catch (profileUpdateError) {
+      console.warn('Error updating profile stats:', profileUpdateError);
+    }
+
     return data
   } catch (err) {
     logError('Unexpected error in createReport', err, report)
     return null
+  }
+}
+
+export async function markReportAsResolved(reportId: string, userId: string): Promise<boolean> {
+  try {
+    console.log('✅ Marking report as resolved:', { reportId, userId });
+
+    const { error } = await supabase
+      .from('reports')
+      .update({
+        status: 'resolved',
+        updated_at: new Date().toISOString(),
+        reviewed_by: userId,
+        reviewed_at: new Date().toISOString()
+      })
+      .eq('id', reportId);
+
+    if (error) {
+      logError('Error marking report as resolved', error, { reportId, userId });
+      return false;
+    }
+
+    console.log('✅ Report marked as resolved successfully');
+    return true;
+  } catch (err) {
+    logError('Unexpected error in markReportAsResolved', err, { reportId, userId });
+    return false;
   }
 }
 
@@ -460,7 +518,7 @@ export async function uploadPhoto(file: File, bucket: 'reports' | 'avatars' | 'd
 
         // Show user-friendly error message
         if (typeof window !== 'undefined') {
-          alert('Storage not configured. Go to Supabase Dashboard → Storage → Create buckets: "avatars" and "drive-images" (make them public)');
+          alert('Storage not configured. Go to Supabase Dashboard ��� Storage → Create buckets: "avatars" and "drive-images" (make them public)');
         }
 
         logError('Storage RLS policy violation', error, {
@@ -680,6 +738,8 @@ export async function createDrive(driveData: Database['public']['Tables']['drive
 
 export async function joinCleanupDrive(driveId: string, userId: string): Promise<boolean> {
   try {
+    console.log('🚀 Attempting to join cleanup drive:', { driveId, userId });
+
     // Check if user is already registered
     const { data: existingParticipation } = await supabase
       .from('drive_participants')
@@ -690,23 +750,27 @@ export async function joinCleanupDrive(driveId: string, userId: string): Promise
       .single()
 
     if (existingParticipation) {
-      console.log('User already registered for this drive')
+      console.log('✅ User already registered for this drive')
       return true
     }
 
     // Add user to participants
-    const { error: participationError } = await supabase
+    const { data: participationData, error: participationError } = await supabase
       .from('drive_participants')
       .insert({
         drive_id: driveId,
         user_id: userId,
         status: 'registered'
       })
+      .select()
+      .single()
 
     if (participationError) {
       logError('Error joining drive - participation', participationError, { driveId, userId })
       return false
     }
+
+    console.log('✅ Successfully added user to drive participants:', participationData);
 
     // Update drive registered volunteer count
     const { error: updateError } = await supabase.rpc('increment_drive_volunteers', {
@@ -754,7 +818,7 @@ export async function joinCleanupDrive(driveId: string, userId: string): Promise
     }
 
     // Add activity record
-    await createActivity({
+    const activity = await createActivity({
       user_id: userId,
       type: 'cleanup_joined',
       title: 'Joined Cleanup Drive',
@@ -763,6 +827,11 @@ export async function joinCleanupDrive(driveId: string, userId: string): Promise
       metadata: { drive_id: driveId }
     })
 
+    if (activity) {
+      console.log('✅ Activity created for drive registration:', activity.id);
+    }
+
+    console.log('🎉 Successfully completed drive registration for user:', userId);
     return true
   } catch (err) {
     console.error('Unexpected error in joinCleanupDrive:', err)
@@ -821,6 +890,8 @@ export async function leaveCleanupDrive(driveId: string, userId: string): Promis
 
 export async function getUserDriveParticipation(userId: string): Promise<DriveParticipant[]> {
   try {
+    console.log('🔍 Fetching drive participation for user:', userId);
+
     const { data, error } = await supabase
       .from('drive_participants')
       .select(`
@@ -838,6 +909,9 @@ export async function getUserDriveParticipation(userId: string): Promise<DrivePa
       logError('Error fetching user drive participation', error, { userId })
       return []
     }
+
+    console.log('✅ Found', data?.length || 0, 'drive registrations for user:', userId);
+    console.log('Drive participation data:', data);
 
     return data || []
   } catch (err) {

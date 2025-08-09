@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Header } from "@/components/Header";
 import { useAuth } from "@/contexts/AuthContext";
-import { getReports, searchLocations } from "@/lib/database";
+import { getReports, searchLocations, markReportAsResolved } from "@/lib/database";
 import { Report } from "@/lib/database.types";
 import Map, { Marker, Popup } from 'react-map-gl/maplibre';
 import 'maplibre-gl/dist/maplibre-gl.css';
@@ -118,6 +118,7 @@ export default function Maps() {
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [reports, setReports] = useState<Report[]>([]);
   const [loading, setLoading] = useState(true);
+  const [resolvingReport, setResolvingReport] = useState<string | null>(null);
   const [viewState, setViewState] = useState({
     longitude: 72.88,
     latitude: 19.13,
@@ -235,7 +236,9 @@ export default function Maps() {
   };
 
   const getMarkerColor = (report: Report) => {
-    if (report.type === 'cleanup') {
+    if (report.status === 'resolved') {
+      return 'text-gray-400';
+    } else if (report.type === 'cleanup') {
       return 'text-green-600';
     } else {
       switch (report.severity) {
@@ -255,6 +258,32 @@ export default function Maps() {
       hour: '2-digit',
       minute: '2-digit'
     });
+  };
+
+  const handleResolveReport = async (reportId: string) => {
+    if (!user) return;
+
+    setResolvingReport(reportId);
+    try {
+      const success = await markReportAsResolved(reportId, user.id);
+      if (success) {
+        // Update the local state to reflect the resolved status
+        setReports(prev => prev.map(report =>
+          report.id === reportId
+            ? { ...report, status: 'resolved' as const }
+            : report
+        ));
+        setActiveReport(prev =>
+          prev?.id === reportId
+            ? { ...prev, status: 'resolved' as const }
+            : prev
+        );
+      }
+    } catch (error) {
+      console.error('Error resolving report:', error);
+    } finally {
+      setResolvingReport(null);
+    }
   };
 
   return (
@@ -288,6 +317,30 @@ export default function Maps() {
                 Cleanup Drives
               </button>
             </div>
+
+            {/* Legend */}
+            {activeTab === "pollution" && (
+              <div className="py-2 text-xs text-gray-600">
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-1">
+                    <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                    <span>Severe</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
+                    <span>Moderate</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
+                    <span>Low</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
+                    <span>Resolved</span>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Report List */}
@@ -307,7 +360,11 @@ export default function Maps() {
                   reports.map((report) => (
                     <div
                       key={report.id}
-                      className="p-3 border-b border-gray-100 bg-white hover:bg-gray-50 transition-colors cursor-pointer"
+                      className={`p-3 border-b border-gray-100 transition-colors cursor-pointer ${
+                        report.status === 'resolved'
+                          ? 'bg-gray-50 opacity-75 hover:bg-gray-100'
+                          : 'bg-white hover:bg-gray-50'
+                      }`}
                       onClick={() => {
                         setViewState({
                           longitude: report.longitude,
@@ -333,7 +390,11 @@ export default function Maps() {
                         )}
 
                         <div className="flex-1 min-w-0">
-                          <h3 className="font-semibold text-[#121717] text-sm md:text-base mb-1 line-clamp-1">
+                          <h3 className={`font-semibold text-sm md:text-base mb-1 line-clamp-1 ${
+                            report.status === 'resolved'
+                              ? 'text-gray-500 line-through'
+                              : 'text-[#121717]'
+                          }`}>
                             {report.title}
                           </h3>
                           <p className="text-xs md:text-sm text-[#61808A] mb-1">{report.location_name}</p>
@@ -346,13 +407,18 @@ export default function Maps() {
                         <div className="flex flex-col justify-start pt-1">
                           <div className="w-6 h-6 flex items-center justify-center">
                             <div className={`w-3 h-3 rounded-full ${
-                              report.type === 'cleanup'
-                                ? 'bg-green-500'
-                                : report.severity === 'severe' ? 'bg-red-500'
-                                : report.severity === 'moderate' ? 'bg-orange-500'
-                                : 'bg-yellow-500'
+                              report.status === 'resolved'
+                                ? 'bg-gray-400'
+                                : report.type === 'cleanup'
+                                  ? 'bg-green-500'
+                                  : report.severity === 'severe' ? 'bg-red-500'
+                                  : report.severity === 'moderate' ? 'bg-orange-500'
+                                  : 'bg-yellow-500'
                             }`}></div>
                           </div>
+                          {report.status === 'resolved' && (
+                            <div className="text-xs text-gray-500 mt-1">✓ Resolved</div>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -413,16 +479,35 @@ export default function Maps() {
                 className="min-w-0"
               >
                 <div className="max-w-xs p-2">
-                  <h4 className="font-semibold text-sm mb-1">{activeReport.title}</h4>
+                  <div className="flex justify-between items-start mb-1">
+                    <h4 className="font-semibold text-sm flex-1">{activeReport.title}</h4>
+                    {activeReport.status === 'resolved' && (
+                      <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded ml-2">
+                        ✓ Resolved
+                      </span>
+                    )}
+                  </div>
                   <p className="text-sm text-[#61808A] mb-1">{activeReport.location_name}</p>
                   <p className="text-xs text-gray-500 mb-2">{formatDate(activeReport.created_at)}</p>
-                  <p className="text-sm leading-relaxed">{activeReport.description}</p>
+                  <p className="text-sm leading-relaxed mb-2">{activeReport.description}</p>
                   {activeReport.photos && activeReport.photos.length > 0 && (
                     <img
                       src={activeReport.photos[0]}
                       alt={activeReport.title}
-                      className="mt-2 w-full h-24 object-cover rounded"
+                      className="mt-2 w-full h-24 object-cover rounded mb-2"
                     />
+                  )}
+
+                  {/* Resolve Button - Only show for pollution reports that aren't resolved yet */}
+                  {user && activeReport.type === 'pollution' && activeReport.status !== 'resolved' && (
+                    <Button
+                      onClick={() => handleResolveReport(activeReport.id)}
+                      disabled={resolvingReport === activeReport.id}
+                      size="sm"
+                      className="w-full bg-green-600 hover:bg-green-700 text-white text-xs mt-2"
+                    >
+                      {resolvingReport === activeReport.id ? 'Resolving...' : '✓ Mark as Resolved'}
+                    </Button>
                   )}
                 </div>
               </Popup>

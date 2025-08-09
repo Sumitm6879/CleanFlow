@@ -6,8 +6,13 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Badge } from '../components/ui/badge';
-import { Card, CardContent } from '../components/ui/card';
-import { Heart, MessageCircle, Share2, MapPin, Calendar, Users, Search, Filter } from 'lucide-react';
+import { Card } from '../components/ui/card';
+import { Heart, MessageCircle, Share2, MapPin, Calendar, Users, Search } from 'lucide-react';
+
+// Import images
+import user1 from '../assets/images/user1.jpeg';
+import user2 from '../assets/images/user2.jpeg';
+import user3 from '../assets/images/user3.jpeg';
 
 interface DrivePhoto {
   id: string;
@@ -26,25 +31,23 @@ interface DrivePhoto {
   isLiked: boolean;
 }
 
-// Mock data for demonstration
+// Mock data for demonstration, now using the imported image variables
 const mockPhotos: DrivePhoto[] = [
   {
     id: '1',
     driveTitle: 'Versova Beach Mega Cleanup',
     location: 'Versova Beach, Mumbai',
-    date: '2024-01-20',
+    date: '2025-08-08',
     organizer: 'Ocean Guardians NGO',
-    organizerAvatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop&crop=face',
+    organizerAvatar: user1,
     images: [
-      'https://images.unsplash.com/photo-1583212292454-1fe6229603b7?w=800&h=600&fit=crop',
-      'https://images.unsplash.com/photo-1611273426858-450d8e3c9fce?w=800&h=600&fit=crop',
-      'https://images.unsplash.com/photo-1542601906990-b4d3fb778b09?w=800&h=600&fit=crop',
+      user1,
     ],
-    description: 'Amazing turnout today! 200+ volunteers came together to clean Versova Beach. We collected over 500kg of plastic waste and marine debris. The beach looks incredible now! 🌊🧹 #CleanMumbai #BeachCleanup',
-    likes: 324,
-    comments: 45,
+    description: 'Incredible day at Versova Beach! Over 200 volunteers showed up early, sifting through the sand and shoreline to collect a mix of plastic waste, discarded fishing nets, and thermocol. It was hard, hot work, but the results are undeniable. The beach is a lot cleaner, but the fight is far from over! 🌊🧹 #CleanMumbai #BeachCleanup #VersovaBeach',
+    likes: 342,
+    comments: 51,
     volunteers: 200,
-    wasteCollected: '500kg',
+    wasteCollected: '235kg',
     tags: ['Beach Cleanup', 'Plastic Waste', 'Marine Conservation'],
     isLiked: false,
   },
@@ -52,18 +55,17 @@ const mockPhotos: DrivePhoto[] = [
     id: '2',
     driveTitle: 'Mithi River Restoration',
     location: 'Mithi River, Kurla',
-    date: '2024-01-18',
+    date: '2025-08-05',
     organizer: 'Clean Mumbai Initiative',
-    organizerAvatar: 'https://images.unsplash.com/photo-1494790108755-2616b612b002?w=100&h=100&fit=crop&crop=face',
+    organizerAvatar: user2,
     images: [
-      'https://images.unsplash.com/photo-1558618047-b2c4ea1f5c33?w=800&h=600&fit=crop',
-      'https://images.unsplash.com/photo-1599901860904-17e6ed7083a0?w=800&h=600&fit=crop',
+      user2,
     ],
-    description: 'Mithi River cleanup was a huge success! Local communities joined hands with volunteers to remove debris and plant native vegetation along the banks. Together we can restore our rivers! 🌱💚',
-    likes: 189,
-    comments: 28,
+    description: 'The Mithi River cleanup was all about teamwork! Locals and volunteers braved the muddy banks to pull out hundreds of kilograms of debris. We also started planting native mangrove saplings. This is just the first step in a long journey to restore the river’s ecosystem. 🌱💚 #MithiRiver #RiverRestoration #Community',
+    likes: 195,
+    comments: 30,
     volunteers: 100,
-    wasteCollected: '300kg',
+    wasteCollected: '180kg',
     tags: ['River Cleanup', 'Plantation', 'Community'],
     isLiked: true,
   },
@@ -71,50 +73,28 @@ const mockPhotos: DrivePhoto[] = [
     id: '3',
     driveTitle: 'Powai Lake Cleanup Marathon',
     location: 'Powai Lake, Mumbai',
-    date: '2024-01-15',
+    date: '2025-08-01',
     organizer: 'EcoWarriors Mumbai',
-    organizerAvatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&crop=face',
+    organizerAvatar: user3,
     images: [
-      'https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=800&h=600&fit=crop',
-      'https://images.unsplash.com/photo-1611222625683-3fd7b4b67765?w=800&h=200&fit=crop',
-      'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=800&h=600&fit=crop',
-      'https://images.unsplash.com/photo-1502138330085-dead8a18d8e1?w=800&h=600&fit=crop',
+      user3,
     ],
-    description: '6-hour cleanup marathon at Powai Lake! Removed floating debris, cleaned the walking paths, and educated visitors about lake conservation. The before & after photos speak for themselves! 🏞️✨',
-    likes: 267,
-    comments: 33,
+    description: 'What a marathon! Our team spent six hours at Powai Lake, focusing on removing floating debris like plastic bottles and wrappers, and clearing the walking paths of litter. The transformation is amazing to see, and it’s a powerful reminder of what we can do together to protect our urban lakes. 🏞️✨ #PowaiLake #LakeCleanup #EcoWarriors',
+    likes: 278,
+    comments: 36,
     volunteers: 150,
-    wasteCollected: '400kg',
+    wasteCollected: '152kg',
     tags: ['Lake Cleanup', 'Education', 'Marathon'],
     isLiked: false,
   },
-  {
-    id: '4',
-    driveTitle: 'Bandra Bandstand Coastal Care',
-    location: 'Bandstand, Bandra',
-    date: '2024-01-12',
-    organizer: 'Coastal Care Collective',
-    organizerAvatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&h=100&fit=crop&crop=face',
-    images: [
-      'https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=800&h=600&fit=crop',
-      'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=800&h=600&fit=crop',
-    ],
-    description: 'Evening cleanup at the iconic Bandstand! Beautiful sunset and even more beautiful teamwork. Our monthly initiative continues to keep this popular spot pristine. 🌅🧹',
-    likes: 156,
-    comments: 19,
-    volunteers: 80,
-    wasteCollected: '150kg',
-    tags: ['Coastal Cleanup', 'Evening Drive', 'Monthly'],
-    isLiked: true,
-  },
 ];
+
 
 export default function DrivePhotos() {
   const [photos, setPhotos] = useState<DrivePhoto[]>(mockPhotos);
   const [filteredPhotos, setFilteredPhotos] = useState<DrivePhoto[]>(mockPhotos);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedSort, setSelectedSort] = useState('recent');
-  const [showFilters, setShowFilters] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState<Record<string, number>>({});
 
   useEffect(() => {
@@ -147,6 +127,7 @@ export default function DrivePhotos() {
         filtered.sort((a, b) => b.volunteers - a.volunteers);
         break;
       case 'impact':
+        // A simple parse is used here. In a real app, you might want a more robust solution.
         filtered.sort((a, b) => parseFloat(b.wasteCollected) - parseFloat(a.wasteCollected));
         break;
     }

@@ -65,7 +65,7 @@ export default function Report() {
   });
   const [showMap, setShowMap] = useState(false);
 
-  const { user } = useAuth();
+  const { user, refreshProfile } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -308,6 +308,11 @@ export default function Report() {
             title: "Report Submitted",
             description: "Your pollution report has been submitted for review.",
           });
+
+          // Refresh profile to update report count
+          if (refreshProfile) {
+            await refreshProfile();
+          }
         } else {
           // Database save failed but still show success to user
           toast({

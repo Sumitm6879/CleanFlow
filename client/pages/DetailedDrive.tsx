@@ -202,7 +202,7 @@ Powai Lake is home to various bird species and aquatic life. By participating in
 export function DetailedDrive() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user, profile } = useAuth();
+  const { user, profile, refreshProfile } = useAuth();
   const [driveDetails, setDriveDetails] = useState<Drive | null>(null);
   const [isJoined, setIsJoined] = useState(false);
   const [comment, setComment] = useState('');
@@ -286,8 +286,13 @@ export function DetailedDrive() {
           registered_volunteers: prev.registered_volunteers + 1
         }) : null);
         
-        // Show success message
+        // Show success message and refresh profile data
         alert('Successfully joined the cleanup drive! Check your profile for details.');
+
+        // Refresh user profile to update the drive participation data
+        if (refreshProfile) {
+          await refreshProfile();
+        }
       } else {
         alert('Failed to join the drive. Please try again.');
       }
@@ -315,6 +320,11 @@ export function DetailedDrive() {
         }) : null);
         
         alert('You have left the cleanup drive.');
+
+        // Refresh user profile to update the drive participation data
+        if (refreshProfile) {
+          await refreshProfile();
+        }
       } else {
         alert('Failed to leave the drive. Please try again.');
       }
