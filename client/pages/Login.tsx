@@ -14,7 +14,7 @@ export default function Login() {
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
-  
+
   const from = location.state?.from?.pathname || "/";
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -22,7 +22,7 @@ export default function Login() {
     setLoading(true);
 
     const { error } = await signIn(email, password);
-    
+
     if (error) {
       toast({
         title: "Login Failed",
@@ -36,13 +36,13 @@ export default function Login() {
       });
       navigate(from, { replace: true });
     }
-    
+
     setLoading(false);
   };
 
   const handleGoogleLogin = async () => {
     const { error } = await signInWithGoogle();
-    
+
     if (error) {
       toast({
         title: "Google Sign In Failed",
@@ -80,6 +80,13 @@ export default function Login() {
 
           {/* Form */}
           <form onSubmit={handleLogin} className="space-y-3 max-w-md mx-auto px-4">
+            {/* Test Credentials Info */}
+          <div className="mb-5 max-w-md mx-auto px-4 py-3 bg-[#F0F2F5] rounded-xl text-sm text-[#121717] border border-gray-200">
+            <p className="font-semibold mb-1">Test Credentials</p>
+            <p>Email: <span className="font-mono">admin@admin.com</span></p>
+            <p>Password: <span className="font-mono">Admin1234</span></p>
+          </div>
+
             {/* Email */}
             <div className="space-y-2">
               <Label className="text-lg font-medium text-[#121717]">Email</Label>
@@ -112,7 +119,7 @@ export default function Login() {
 
             {/* Login Button */}
             <div className="py-3">
-              <Button 
+              <Button
                 type="submit"
                 disabled={loading}
                 className="w-full bg-[#1AB2E5] hover:bg-[#1496c7] text-[#121717] text-sm font-bold h-10 rounded-xl"
