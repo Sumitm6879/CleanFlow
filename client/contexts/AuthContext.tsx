@@ -1,17 +1,19 @@
 import React, { createContext, useContext, useEffect, useState } from 'react'
 import { User, Session } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
-import { getProfile, createProfile, checkDatabaseHealth } from '@/lib/database'
+import { getProfile, createProfile, checkDatabaseHealth, Profile } from '@/lib/database'
 
 interface AuthContextType {
   user: User | null
   session: Session | null
+  profile: Profile | null
   loading: boolean
   signIn: (email: string, password: string) => Promise<{ error?: any }>
   signUp: (email: string, password: string, fullName?: string) => Promise<{ error?: any }>
   signOut: () => Promise<void>
   signInWithGoogle: () => Promise<{ error?: any }>
   resetPassword: (email: string) => Promise<{ error?: any }>
+  refreshProfile: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -19,7 +21,26 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [session, setSession] = useState<Session | null>(null)
+  const [profile, setProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)
+
+  // Function to load user profile
+  const loadUserProfile = async (userId: string) => {
+    try {
+      const userProfile = await getProfile(userId)
+      setProfile(userProfile)
+    } catch (error) {
+      console.error('Error loading user profile:', error)
+      setProfile(null)
+    }
+  }
+
+  // Function to refresh profile (useful after profile updates)
+  const refreshProfile = async () => {
+    if (user?.id) {
+      await loadUserProfile(user.id)
+    }
+  }
 
   useEffect(() => {
     let mounted = true
@@ -36,6 +57,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
           setSession(session)
           setUser(session?.user ?? null)
+
+          // Load profile if user exists
+          if (session?.user) {
+            await loadUserProfile(session.user.id)
+          } else {
+            setProfile(null)
+          }
+
           setLoading(false)
 
           console.log('Initial session loaded:', {
@@ -67,26 +96,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (event === 'SIGNED_OUT') {
         setSession(null)
         setUser(null)
+        setProfile(null)
         console.log('User signed out')
       } else if (event === 'TOKEN_REFRESHED') {
         setSession(session)
         setUser(session?.user ?? null)
+        if (session?.user) {
+          loadUserProfile(session.user.id).catch(console.error)
+        }
         console.log('Session token refreshed')
       } else if (event === 'SIGNED_IN') {
         setSession(session)
         setUser(session?.user ?? null)
         console.log('User signed in:', session?.user?.email)
 
-        // Create profile for new users (but don't block the auth flow)
+        // Create profile for new users and load profile
         if (session?.user) {
           createUserProfile(session.user).catch(error => {
             console.error('Background profile creation failed:', error)
           })
+          loadUserProfile(session.user.id).catch(console.error)
         }
       } else {
         // For other events, update state
         setSession(session)
         setUser(session?.user ?? null)
+        if (session?.user) {
+          loadUserProfile(session.user.id).catch(console.error)
+        } else {
+          setProfile(null)
+        }
       }
 
       setLoading(false)
@@ -183,6 +222,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Immediately clear local state for instant UI feedback
       setUser(null)
       setSession(null)
+      setProfile(null)
 
       // Then actually sign out from Supabase
       const { error } = await supabase.auth.signOut()
@@ -198,18 +238,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Still clear local state even on error
       setUser(null)
       setSession(null)
+      setProfile(null)
     }
   }
 
   const value = {
     user,
     session,
+    profile,
     loading,
     signIn,
     signUp,
     signOut,
     signInWithGoogle,
     resetPassword,
+    refreshProfile,
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

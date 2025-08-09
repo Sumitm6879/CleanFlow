@@ -11,26 +11,45 @@ import { Calendar, MapPin, Users, Clock, Search, Filter, Plus, Loader2 } from 'l
 import { getDrives } from '@/lib/database';
 import { Drive } from '@/lib/database.types';
 
-// Using Drive from database types, but adding computed fields for display
+// Interface for display drives that includes computed image field
 interface CleanupDriveDisplay extends Drive {
   image: string; // Computed from images array
 }
 
-// Mock data for demonstration
+// Mock data for demonstration - using proper type
+interface CleanupDrive {
+  id: string;
+  title: string;
+  description: string;
+  organizer_name: string;
+  organizer_type: string;
+  location: string;
+  area: string;
+  date: string;
+  time: string;
+  duration: string;
+  max_volunteers: number;
+  registered_volunteers: number;
+  status: string;
+  tags: string[];
+  image: string;
+  verified: boolean;
+}
+
 const mockDrives: CleanupDrive[] = [
   {
     id: '1',
     title: 'Versova Beach Mega Cleanup',
     description: 'Join us for a large-scale beach cleanup initiative to remove plastic waste and restore the natural beauty of Versova Beach.',
-    organizer: 'Ocean Guardians NGO',
-    organizerType: 'NGO',
+    organizer_name: 'Ocean Guardians NGO',
+    organizer_type: 'NGO',
     location: 'Versova Beach, Andheri West',
     area: 'Andheri',
     date: '2024-02-15',
     time: '07:00',
     duration: '4 hours',
-    maxVolunteers: 200,
-    registeredVolunteers: 156,
+    max_volunteers: 200,
+    registered_volunteers: 156,
     status: 'upcoming',
     tags: ['Beach Cleanup', 'Plastic Waste', 'Marine Conservation'],
     image: 'https://images.unsplash.com/photo-1583212292454-1fe6229603b7?w=600&h=400&fit=crop',
@@ -40,15 +59,15 @@ const mockDrives: CleanupDrive[] = [
     id: '2',
     title: 'Mithi River Restoration Drive',
     description: 'Community-driven initiative to clean the Mithi River banks and plant native vegetation.',
-    organizer: 'Clean Mumbai Initiative',
-    organizerType: 'Community',
+    organizer_name: 'Clean Mumbai Initiative',
+    organizer_type: 'Community',
     location: 'Mithi River, Kurla',
     area: 'Kurla',
     date: '2024-02-18',
     time: '08:30',
     duration: '3 hours',
-    maxVolunteers: 100,
-    registeredVolunteers: 67,
+    max_volunteers: 100,
+    registered_volunteers: 67,
     status: 'upcoming',
     tags: ['River Cleanup', 'Plantation', 'Water Conservation'],
     image: 'https://images.unsplash.com/photo-1542601906990-b4d3fb778b09?w=600&h=400&fit=crop',
@@ -58,15 +77,15 @@ const mockDrives: CleanupDrive[] = [
     id: '3',
     title: 'Powai Lake Cleanup Marathon',
     description: 'Weekend cleanup marathon focusing on removing floating debris and educating visitors about lake conservation.',
-    organizer: 'EcoWarriors Mumbai',
-    organizerType: 'NGO',
+    organizer_name: 'EcoWarriors Mumbai',
+    organizer_type: 'NGO',
     location: 'Powai Lake, Powai',
     area: 'Powai',
     date: '2024-02-20',
     time: '06:00',
     duration: '6 hours',
-    maxVolunteers: 150,
-    registeredVolunteers: 89,
+    max_volunteers: 150,
+    registered_volunteers: 89,
     status: 'upcoming',
     tags: ['Lake Cleanup', 'Education', 'Awareness'],
     image: 'https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=600&h=400&fit=crop',
@@ -76,15 +95,15 @@ const mockDrives: CleanupDrive[] = [
     id: '4',
     title: 'Bandra Bandstand Coastal Care',
     description: 'Regular monthly cleanup of the popular Bandstand promenade and surrounding coastal area.',
-    organizer: 'Coastal Care Collective',
-    organizerType: 'Community',
+    organizer_name: 'Coastal Care Collective',
+    organizer_type: 'Community',
     location: 'Bandstand Promenade, Bandra',
     area: 'Bandra',
     date: '2024-02-22',
     time: '17:00',
     duration: '2 hours',
-    maxVolunteers: 80,
-    registeredVolunteers: 43,
+    max_volunteers: 80,
+    registered_volunteers: 43,
     status: 'upcoming',
     tags: ['Coastal Cleanup', 'Evening Drive', 'Regular'],
     image: 'https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=600&h=400&fit=crop',
@@ -94,15 +113,15 @@ const mockDrives: CleanupDrive[] = [
     id: '5',
     title: 'Mahim Creek Revival Project',
     description: 'Intensive cleanup and revival project for Mahim Creek with focus on removing industrial waste.',
-    organizer: 'Mumbai Environmental Society',
-    organizerType: 'NGO',
+    organizer_name: 'Mumbai Environmental Society',
+    organizer_type: 'NGO',
     location: 'Mahim Creek, Mahim',
     area: 'Mahim',
     date: '2024-02-25',
     time: '09:00',
     duration: '5 hours',
-    maxVolunteers: 120,
-    registeredVolunteers: 95,
+    max_volunteers: 120,
+    registered_volunteers: 95,
     status: 'upcoming',
     tags: ['Creek Cleanup', 'Industrial Waste', 'Revival'],
     image: 'https://images.unsplash.com/photo-1611273426858-450d8e3c9fce?w=600&h=400&fit=crop',
@@ -141,7 +160,24 @@ export default function CleanupDrives() {
             ...drive,
             image: drive.images?.[0] || getDefaultImage(drive.area),
           }))
-        : mockDrives; // Fallback to mock data if no drives in database
+        : mockDrives.map(drive => ({
+            ...drive,
+            verified: drive.verified || false,
+            organizer_avatar: null,
+            organizer_bio: null,
+            contact_email: '',
+            contact_phone: null,
+            full_description: drive.description,
+            organizer_id: '',
+            latitude: null,
+            longitude: null,
+            images: [drive.image],
+            requirements: [],
+            safety_measures: [],
+            expected_impact: {},
+            created_at: '',
+            updated_at: ''
+          } as CleanupDriveDisplay)); // Fallback to mock data if no drives in database
 
       setDrives(driveDisplays);
       console.log('Loaded drives:', driveDisplays.length);
@@ -384,7 +420,25 @@ export default function CleanupDrives() {
                   <div className="space-y-2 text-sm">
                     <div className="flex items-center text-gray-600">
                       <span className="font-medium text-gray-800 mr-2">By:</span>
-                      {drive.organizer_name}
+                      <div className="flex items-center space-x-2">
+                        {drive.organizer_avatar ? (
+                          <img
+                            src={drive.organizer_avatar}
+                            alt={drive.organizer_name}
+                            className="w-6 h-6 rounded-full object-cover border border-gray-200"
+                            onError={(e) => {
+                              e.currentTarget.style.display = 'none';
+                              e.currentTarget.nextElementSibling.style.display = 'flex';
+                            }}
+                          />
+                        ) : null}
+                        <div
+                          className={`w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-bold ${drive.organizer_avatar ? 'hidden' : ''}`}
+                        >
+                          {drive.organizer_name?.charAt(0)?.toUpperCase()}
+                        </div>
+                        <span>{drive.organizer_name}</span>
+                      </div>
                     </div>
                     <div className="flex items-center text-gray-600">
                       <MapPin className="w-4 h-4 mr-2" />

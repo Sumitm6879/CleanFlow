@@ -32,6 +32,99 @@ console.log(`🔥 DATABASE MODULE LOADED - VERSION 3.12 (${timestamp}) - BULLETP
   console.log('✅ Test complete - check above for detailed error output');
 };
 
+// Add storage debugging functions to window for easy testing
+(window as any).checkStorageHealth = checkStorageHealth;
+(window as any).testStorageUpload = testStorageUpload;
+(window as any).debugStorage = async () => {
+  console.log('🔧 Running complete storage diagnostics...');
+
+  const health = await checkStorageHealth();
+  console.log('Storage Health:', health);
+
+  if (health.working) {
+    const uploadTest = await testStorageUpload('avatars');
+    console.log('Upload Test Result:', uploadTest);
+  }
+
+  console.log('✅ Storage diagnostics complete');
+};
+
+// Storage health check
+export async function checkStorageHealth(): Promise<{ buckets: string[], working: boolean, details: any }> {
+  try {
+    const { data: buckets, error } = await supabase.storage.listBuckets();
+
+    if (error) {
+      console.warn('Storage check failed:', error.message);
+      return { buckets: [], working: false, details: { error: error.message } };
+    }
+
+    const bucketNames = buckets?.map(b => b.name) || [];
+    console.log('Available storage buckets:', bucketNames);
+
+    // Check authentication status
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+
+    const details = {
+      bucketsFound: bucketNames,
+      userAuthenticated: !!user,
+      userId: user?.id,
+      userRole: user?.role,
+      userError: userError?.message
+    };
+
+    console.log('Storage health details:', details);
+
+    return {
+      buckets: bucketNames,
+      working: true,
+      details
+    };
+  } catch (err) {
+    console.warn('Storage health check error:', err);
+    return {
+      buckets: [],
+      working: false,
+      details: {
+        error: err.message,
+        type: 'unexpected_error'
+      }
+    };
+  }
+}
+
+// Test storage upload permissions
+export async function testStorageUpload(bucket: 'avatars' | 'drive-images' = 'avatars'): Promise<boolean> {
+  try {
+    console.log('Testing storage upload permissions for bucket:', bucket);
+
+    // Create a small test file
+    const testContent = new Blob(['test'], { type: 'text/plain' });
+    const testFile = new File([testContent], 'test.txt', { type: 'text/plain' });
+
+    // Try to upload
+    const { data, error } = await supabase.storage
+      .from(bucket)
+      .upload(`test-${Date.now()}.txt`, testFile, { upsert: true });
+
+    if (error) {
+      console.error('Storage test upload failed:', error);
+      return false;
+    }
+
+    // Clean up test file
+    if (data?.path) {
+      await supabase.storage.from(bucket).remove([data.path]);
+    }
+
+    console.log('Storage upload test successful');
+    return true;
+  } catch (err) {
+    console.error('Storage test error:', err);
+    return false;
+  }
+}
+
 // Database health check with enhanced connectivity handling
 export async function checkDatabaseHealth(): Promise<boolean> {
   try {
@@ -336,28 +429,86 @@ export async function createActivity(activity: ActivityInsert): Promise<Activity
 }
 
 // File upload functions
-export async function uploadPhoto(file: File, bucket: 'reports' | 'avatars', fileName?: string): Promise<string | null> {
-  const fileExt = file.name.split('.').pop()
-  const finalFileName = fileName || `${Math.random()}.${fileExt}`
-  const filePath = `${finalFileName}`
+export async function uploadPhoto(file: File, bucket: 'reports' | 'avatars' | 'drive-images', fileName?: string): Promise<string | null> {
+  try {
+    const fileExt = file.name.split('.').pop()
+    const finalFileName = fileName || `${Date.now()}-${Math.random().toString(36).substr(2, 9)}.${fileExt}`
+    const filePath = `${finalFileName}`
 
-  const { error } = await supabase.storage
-    .from(bucket)
-    .upload(filePath, file)
+    // If a specific filename is provided (like for avatars), try to remove existing file first
+    if (fileName) {
+      await supabase.storage
+        .from(bucket)
+        .remove([filePath])
+      // Don't worry if removal fails - the file might not exist
+    }
 
-  if (error) {
-    logError('Error uploading file', error, { bucket, fileName })
+    // Upload the file with upsert option
+    const { error } = await supabase.storage
+      .from(bucket)
+      .upload(filePath, file, {
+        upsert: true // This allows overwriting existing files
+      })
+
+    if (error) {
+      // Handle specific error types
+      if (error.message?.includes('row-level security policy') || error.message?.includes('policy')) {
+        console.warn(`🚨 STORAGE SETUP NEEDED:`);
+        console.warn(`1. Go to Supabase Dashboard → Storage`);
+        console.warn(`2. Create buckets: 'avatars' and 'drive-images' (make them public)`);
+        console.warn(`3. Set policies to allow authenticated users`);
+
+        // Show user-friendly error message
+        if (typeof window !== 'undefined') {
+          alert('Storage not configured. Go to Supabase Dashboard → Storage → Create buckets: "avatars" and "drive-images" (make them public)');
+        }
+
+        logError('Storage RLS policy violation', error, {
+          bucket,
+          fileName,
+          filePath,
+          helpMessage: 'Create storage buckets via Supabase Dashboard'
+        });
+      } else if (error.message?.includes('Bucket not found') || error.message?.includes('bucket does not exist')) {
+        console.warn(`Storage bucket '${bucket}' not found. Please run the Supabase setup SQL to create storage buckets.`);
+        logError('Storage bucket not found', error, {
+          bucket,
+          fileName,
+          filePath,
+          helpMessage: 'Run MINIMAL_STORAGE_FIX.sql to create storage buckets'
+        });
+      } else if (error.message?.includes('JWT') || error.message?.includes('unauthorized')) {
+        console.warn('User authentication issue during upload');
+        logError('Authentication error during upload', error, {
+          bucket,
+          fileName,
+          filePath,
+          helpMessage: 'User may need to re-authenticate'
+        });
+      } else {
+        logError('Error uploading file', error, { bucket, fileName, filePath })
+      }
+      return null
+    }
+
+    const { data } = supabase.storage
+      .from(bucket)
+      .getPublicUrl(filePath)
+
+    return data.publicUrl
+  } catch (err) {
+    logError('Unexpected error in uploadPhoto', err, { bucket, fileName })
     return null
   }
-
-  const { data } = supabase.storage
-    .from(bucket)
-    .getPublicUrl(filePath)
-
-  return data.publicUrl
 }
 
-export async function deletePhoto(bucket: 'reports' | 'avatars', filePath: string): Promise<boolean> {
+export async function uploadDriveImages(files: File[]): Promise<string[]> {
+  const uploadPromises = files.map(file => uploadPhoto(file, 'drive-images'));
+  const results = await Promise.all(uploadPromises);
+  return results.filter(url => url !== null) as string[];
+}
+
+export async function deletePhoto(bucket: 'reports' | 'avatars' | 'drive-images', filePath: string): Promise<boolean> {
   const { error } = await supabase.storage
     .from(bucket)
     .remove([filePath])
@@ -451,13 +602,13 @@ export async function updateUserRanking(): Promise<void> {
 export async function getDrives(): Promise<Drive[]> {
   try {
     const { data, error } = await supabase
-      .from('drive')
+      .from('drives')
       .select('*')
       .order('date', { ascending: true })
 
     if (error) {
       if (error.code === '42P01') {
-        console.warn('Drive table does not exist yet.')
+        console.warn('Drives table does not exist yet.')
         return []
       }
       logError('Error fetching drives', error)
@@ -474,7 +625,7 @@ export async function getDrives(): Promise<Drive[]> {
 export async function getDriveById(id: string): Promise<Drive | null> {
   try {
     const { data, error } = await supabase
-      .from('drive')
+      .from('drives')
       .select('*')
       .eq('id', id)
       .single()
@@ -485,7 +636,7 @@ export async function getDriveById(id: string): Promise<Drive | null> {
         return null
       }
       if (error.code === '42P01') {
-        console.warn('Drive table does not exist yet.')
+        console.warn('Drives table does not exist yet.')
         return null
       }
       logError('Error fetching drive', error, { id })
@@ -499,10 +650,10 @@ export async function getDriveById(id: string): Promise<Drive | null> {
   }
 }
 
-export async function createDrive(driveData: Database['public']['Tables']['drive']['Insert']): Promise<Drive | null> {
+export async function createDrive(driveData: Database['public']['Tables']['drives']['Insert']): Promise<Drive | null> {
   try {
     const { data, error } = await supabase
-      .from('drive')
+      .from('drives')
       .insert({
         ...driveData,
         registered_volunteers: 0,
@@ -565,14 +716,14 @@ export async function joinCleanupDrive(driveId: string, userId: string): Promise
     if (updateError) {
       // If RPC doesn't exist, try manual update
       const { data: drive } = await supabase
-        .from('drive')
+        .from('drives')
         .select('registered_volunteers')
         .eq('id', driveId)
         .single()
 
       if (drive) {
         await supabase
-          .from('drive')
+          .from('drives')
           .update({ registered_volunteers: drive.registered_volunteers + 1 })
           .eq('id', driveId)
       }
@@ -635,14 +786,14 @@ export async function leaveCleanupDrive(driveId: string, userId: string): Promis
 
     // Update drive registered volunteer count
     const { data: drive } = await supabase
-      .from('drive')
+      .from('drives')
       .select('registered_volunteers')
       .eq('id', driveId)
       .single()
 
     if (drive && drive.registered_volunteers > 0) {
       await supabase
-        .from('drive')
+        .from('drives')
         .update({ registered_volunteers: drive.registered_volunteers - 1 })
         .eq('id', driveId)
     }
@@ -674,7 +825,7 @@ export async function getUserDriveParticipation(userId: string): Promise<DrivePa
       .from('drive_participants')
       .select(`
         *,
-        drive (*)
+        drives (*)
       `)
       .eq('user_id', userId)
       .eq('status', 'registered')

@@ -12,7 +12,7 @@ import { useState } from "react";
 
 export function Header() {
   const location = useLocation();
-  const { user, signOut } = useAuth();
+  const { user, profile, signOut } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const isActive = (path: string) => {
@@ -81,11 +81,25 @@ export function Header() {
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="flex items-center gap-2 p-2">
-                    <div className="w-8 h-8 rounded-full bg-[#12B5ED] flex items-center justify-center text-white font-bold">
-                      {user.email?.charAt(0).toUpperCase()}
+                    {profile?.avatar_url ? (
+                      <img
+                        src={profile.avatar_url}
+                        alt="Profile"
+                        className="w-8 h-8 rounded-full object-cover border border-gray-200"
+                        onError={(e) => {
+                          // Fallback to initial if image fails to load
+                          e.currentTarget.style.display = 'none';
+                          e.currentTarget.nextElementSibling.style.display = 'flex';
+                        }}
+                      />
+                    ) : null}
+                    <div
+                      className={`w-8 h-8 rounded-full bg-[#12B5ED] flex items-center justify-center text-white font-bold ${profile?.avatar_url ? 'hidden' : ''}`}
+                    >
+                      {(profile?.full_name?.charAt(0) || user.email?.charAt(0))?.toUpperCase()}
                     </div>
                     <span className="hidden md:block text-[#121717] font-medium">
-                      {user.user_metadata?.full_name || user.email?.split('@')[0]}
+                      {profile?.full_name || user.user_metadata?.full_name || user.email?.split('@')[0]}
                     </span>
                   </Button>
                 </DropdownMenuTrigger>
