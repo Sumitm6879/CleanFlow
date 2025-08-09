@@ -42,6 +42,8 @@ This initiative is part of our ongoing commitment to restore Mumbai's coastline 
       contact_phone: '+91 98765 43210',
       location: 'Versova Beach, Andheri West',
       area: 'Andheri',
+      latitude: 19.1136,
+      longitude: 72.7973,
       date: '2024-02-15',
       time: '07:00',
       duration: '4 hours',
@@ -200,7 +202,7 @@ Powai Lake is home to various bird species and aquatic life. By participating in
 export function DetailedDrive() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [driveDetails, setDriveDetails] = useState<Drive | null>(null);
   const [isJoined, setIsJoined] = useState(false);
   const [comment, setComment] = useState('');
@@ -243,7 +245,6 @@ export function DetailedDrive() {
       
       // If not found in database, use mock data
       if (!drive) {
-        console.log('Drive not found in database, using mock data for ID:', id);
         drive = getMockDriveData(id);
       }
 
@@ -330,8 +331,8 @@ export function DetailedDrive() {
     
     const newComment = {
       id: Date.now().toString(),
-      author: user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'You',
-      avatar: user?.user_metadata?.avatar_url || 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=50&h=50&fit=crop&crop=face',
+      author: profile?.full_name || user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'You',
+      avatar: profile?.avatar_url || user?.user_metadata?.avatar_url || 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=50&h=50&fit=crop&crop=face',
       text: comment.trim(),
       date: new Date().toISOString().split('T')[0],
       likes: 0,

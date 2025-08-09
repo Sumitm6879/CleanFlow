@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Header } from '../components/Header';
 import { Footer } from '../components/Footer';
@@ -9,9 +9,9 @@ import { Textarea } from '../components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Checkbox } from '../components/ui/checkbox';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
-import { ArrowLeft, Calendar, MapPin, Users, Info, Loader2 } from 'lucide-react';
+import { ArrowLeft, Calendar, MapPin, Users, Info, Loader2, Map, Upload, X } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { createDrive } from '@/lib/database';
+import { createDrive, uploadDriveImages } from '@/lib/database';
 
 interface FormData {
   title: string;
@@ -23,6 +23,8 @@ interface FormData {
   contactPhone: string;
   location: string;
   area: string;
+  latitude: number | null;
+  longitude: number | null;
   date: string;
   time: string;
   duration: string;
@@ -35,6 +37,8 @@ interface FormData {
   agreeToTerms: boolean;
 }
 
+
+
 const initialFormData: FormData = {
   title: '',
   description: '',
@@ -45,6 +49,8 @@ const initialFormData: FormData = {
   contactPhone: '',
   location: '',
   area: '',
+  latitude: null,
+  longitude: null,
   date: '',
   time: '',
   duration: '',
@@ -56,6 +62,8 @@ const initialFormData: FormData = {
   isVerified: false,
   agreeToTerms: false,
 };
+
+
 
 const areas = [
   'Andheri', 'Bandra', 'Borivali', 'Dadar', 'Ghatkopar', 'Juhu', 'Kurla', 
@@ -71,16 +79,36 @@ const commonTags = [
 
 export default function OrganizeDrive() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [formData, setFormData] = useState<FormData>(initialFormData);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showMap, setShowMap] = useState(false);
+  const [selectedImages, setSelectedImages] = useState<File[]>([]);
 
-  const handleInputChange = (field: keyof FormData, value: string | boolean) => {
+  const handleInputChange = (field: keyof FormData, value: string | boolean | number | null) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: '' }));
     }
+  };
+
+  const handleCoordinateInput = (field: 'latitude' | 'longitude', value: string) => {
+    const numValue = parseFloat(value);
+    if (!isNaN(numValue)) {
+      setFormData(prev => ({ ...prev, [field]: numValue }));
+    } else if (value === '') {
+      setFormData(prev => ({ ...prev, [field]: null }));
+    }
+  };
+
+  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || []);
+    setSelectedImages(prev => [...prev, ...files].slice(0, 5)); // Max 5 images
+  };
+
+  const removeImage = (index: number) => {
+    setSelectedImages(prev => prev.filter((_, i) => i !== index));
   };
 
   const validateForm = (): boolean => {
@@ -163,27 +191,40 @@ export default function OrganizeDrive() {
         organizer_id: user.id,
         organizer_name: formData.organizerName.trim(),
         organizer_type: formData.organizerType as 'NGO' | 'Community' | 'Individual',
-        organizer_avatar: user.user_metadata?.avatar_url || null,
+        organizer_avatar: profile?.avatar_url || null,
         organizer_bio: `Contact: ${formData.contactEmail}` + (formData.contactPhone ? ` | ${formData.contactPhone}` : ''),
         contact_email: formData.contactEmail.trim(),
         contact_phone: formData.contactPhone.trim() || null,
         location: formData.location.trim(),
         area: formData.area,
+        latitude: formData.latitude,
+        longitude: formData.longitude,
         date: formData.date,
         time: formData.time,
         duration: formData.duration.trim(),
         max_volunteers: parseInt(formData.maxVolunteers, 10),
         tags: tagsArray,
-        images: [], // Default empty array, could be enhanced later
+        images: [], // Will be updated after image upload
         requirements: requirementsArray,
         safety_measures: safetyMeasuresArray,
         expected_impact: expectedImpact,
       };
 
-      console.log('Creating drive:', driveData);
+
+      // Upload images first if any selected
+      let imageUrls: string[] = [];
+      if (selectedImages.length > 0) {
+        imageUrls = await uploadDriveImages(selectedImages);
+      }
+
+      // Update drive data with uploaded image URLs
+      const finalDriveData = {
+        ...driveData,
+        images: imageUrls
+      };
 
       // Submit to Supabase
-      const createdDrive = await createDrive(driveData);
+      const createdDrive = await createDrive(finalDriveData);
 
       if (createdDrive) {
         alert('Cleanup drive created successfully! It is now visible to volunteers.');
@@ -292,7 +333,7 @@ export default function OrganizeDrive() {
                         <SelectValue placeholder="Select organizer type" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="NGO">🏢 NGO/Organization</SelectItem>
+                        <SelectItem value="NGO">�� NGO/Organization</SelectItem>
                         <SelectItem value="Community">👥 Community Group</SelectItem>
                         <SelectItem value="Individual">👤 Individual</SelectItem>
                       </SelectContent>
@@ -363,6 +404,65 @@ export default function OrganizeDrive() {
                       </SelectContent>
                     </Select>
                     {errors.area && <p className="text-red-500 text-sm mt-1">{errors.area}</p>}
+                  </div>
+
+                  {/* GPS Coordinates Section */}
+                  <div className="md:col-span-2">
+                    <div className="flex items-center justify-between mb-2">
+                      <Label>GPS Coordinates (Optional)</Label>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowMap(!showMap)}
+                        className="flex items-center space-x-2"
+                      >
+                        <MapPin className="w-4 h-4" />
+                        <span>{showMap ? 'Hide Coordinates' : 'Add Coordinates'}</span>
+                      </Button>
+                    </div>
+
+                    {showMap && (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-gray-50 rounded-lg border-2 border-gray-200">
+                        <div>
+                          <Label htmlFor="latitude">Latitude</Label>
+                          <Input
+                            id="latitude"
+                            type="number"
+                            step="any"
+                            value={formData.latitude || ''}
+                            onChange={(e) => handleCoordinateInput('latitude', e.target.value)}
+                            placeholder="e.g., 19.1136"
+                            className="mt-1"
+                          />
+                          <p className="text-xs text-gray-500 mt-1">Mumbai range: 18.8 to 19.3</p>
+                        </div>
+                        <div>
+                          <Label htmlFor="longitude">Longitude</Label>
+                          <Input
+                            id="longitude"
+                            type="number"
+                            step="any"
+                            value={formData.longitude || ''}
+                            onChange={(e) => handleCoordinateInput('longitude', e.target.value)}
+                            placeholder="e.g., 72.7973"
+                            className="mt-1"
+                          />
+                          <p className="text-xs text-gray-500 mt-1">Mumbai range: 72.7 to 73.0</p>
+                        </div>
+                        <div className="md:col-span-2">
+                          <p className="text-sm text-blue-600">
+                            💡 Tip: You can find coordinates by searching your location on Google Maps and right-clicking on the exact spot.
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {formData.latitude && formData.longitude && (
+                      <p className="text-sm text-gray-600 mt-2">
+                        📍 Coordinates set: {formData.latitude.toFixed(6)}, {formData.longitude.toFixed(6)}
+                      </p>
+                    )}
                   </div>
 
                   <div>
@@ -492,6 +592,54 @@ export default function OrganizeDrive() {
                     <p className="text-xs text-gray-500 mt-1">Optional: You can provide a JSON object or simple text description</p>
                   </div>
                 </div>
+              </CardContent>
+            </Card>
+
+            {/* Images */}
+            <Card className="bg-white/80 backdrop-blur-sm">
+              <CardHeader>
+                <CardTitle className="flex items-center space-x-2">
+                  <Upload className="w-5 h-5" />
+                  <span>Drive Images (Optional)</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <Label htmlFor="images">Upload Images</Label>
+                  <Input
+                    id="images"
+                    type="file"
+                    multiple
+                    accept="image/*"
+                    onChange={handleImageUpload}
+                    className="cursor-pointer"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Upload up to 5 images (JPG, PNG, WebP). These will help attract more volunteers.</p>
+                </div>
+
+                {selectedImages.length > 0 && (
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    {selectedImages.map((file, index) => (
+                      <div key={index} className="relative group">
+                        <img
+                          src={URL.createObjectURL(file)}
+                          alt={`Preview ${index + 1}`}
+                          className="w-full h-24 object-cover rounded-lg border-2 border-gray-200"
+                        />
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          size="sm"
+                          className="absolute top-1 right-1 w-6 h-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={() => removeImage(index)}
+                        >
+                          <X className="w-3 h-3" />
+                        </Button>
+                        <p className="text-xs text-gray-600 mt-1 truncate">{file.name}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
 

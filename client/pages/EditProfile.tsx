@@ -10,7 +10,7 @@ import { Profile } from '@/lib/database.types';
 import { Upload, X, User, Save, ArrowLeft } from 'lucide-react';
 
 export function EditProfile() {
-  const { user } = useAuth();
+  const { user, refreshProfile } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -147,13 +147,20 @@ export function EditProfile() {
       // Upload new avatar if selected
       if (newAvatar) {
         setUploadingAvatar(true);
-        const uploadedUrl = await uploadPhoto(newAvatar, 'avatars', `avatar-${user.id}`);
-        if (uploadedUrl) {
-          avatarUrl = uploadedUrl;
-        } else {
-          throw new Error('Failed to upload avatar');
+        try {
+          const fileExt = newAvatar.name.split('.').pop();
+          const uploadedUrl = await uploadPhoto(newAvatar, 'avatars', `avatar-${user.id}-${Date.now()}.${fileExt}`);
+          if (uploadedUrl) {
+            avatarUrl = uploadedUrl;
+          } else {
+            throw new Error('Failed to upload avatar - upload returned null');
+          }
+        } catch (uploadError) {
+          console.error('Avatar upload error:', uploadError);
+          throw new Error(`Failed to upload avatar: ${uploadError.message || 'Unknown error'}`);
+        } finally {
+          setUploadingAvatar(false);
         }
-        setUploadingAvatar(false);
       }
 
       // Update profile
@@ -164,6 +171,9 @@ export function EditProfile() {
       });
 
       if (updatedProfile) {
+        // Refresh the profile in the context so it updates everywhere
+        await refreshProfile();
+
         toast({
           title: "Profile Updated",
           description: "Your profile has been successfully updated.",
@@ -174,9 +184,18 @@ export function EditProfile() {
       }
     } catch (error) {
       console.error('Error updating profile:', error);
+
+      let errorMessage = "There was an error updating your profile. Please try again.";
+
+      if (error.message && error.message.includes('upload')) {
+        errorMessage = "Failed to upload avatar image. Please try a different image or check your connection.";
+      } else if (error.message && error.message.includes('profile')) {
+        errorMessage = "Failed to save profile changes. Please check your connection and try again.";
+      }
+
       toast({
         title: "Update Failed",
-        description: "There was an error updating your profile. Please try again.",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {

@@ -45,13 +45,14 @@ const mockActivities: Activity[] = [
 ];
 
 export function UserProfile() {
-  const { user, signOut } = useAuth();
+  const { user, signOut,profile: authProfile } = useAuth();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [userReports, setUserReports] = useState<Report[]>([]);
   const [userRank, setUserRank] = useState<{ rank: number; total: number } | null>(null);
   const [joinedDrives, setJoinedDrives] = useState<DriveParticipant[]>([]);
   const [loading, setLoading] = useState(true);
+  const [drivesLoading, setDrivesLoading] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -59,12 +60,30 @@ export function UserProfile() {
     }
   }, [user]);
 
+  // Reload data when the auth profile changes (e.g., after profile refresh)
+  useEffect(() => {
+    if (user && authProfile) {
+      // Reload joined drives data when profile updates
+      const loadJoinedDrives = async () => {
+        try {
+          setDrivesLoading(true);
+          const dbJoinedDrives = await getUserDriveParticipation(user.id);
+          setJoinedDrives(dbJoinedDrives);
+        } catch (error) {
+          console.error('Error loading joined drives:', error);
+        } finally {
+          setDrivesLoading(false);
+        }
+      };
+      loadJoinedDrives();
+    }
+  }, [authProfile, user]);
+
   const loadUserData = async () => {
     if (!user) return;
 
     try {
       setLoading(true);
-      console.log('Loading user data for:', user.id);
 
       // Create a fallback profile first
       const fallbackProfile: Profile = {
@@ -93,7 +112,6 @@ export function UserProfile() {
       try {
         const dbProfile = await getProfile(user.id);
         if (dbProfile) {
-          console.log('Loaded profile from database');
           userProfile = dbProfile;
 
           // Load real activities and reports
@@ -116,15 +134,13 @@ export function UserProfile() {
             leaderboardRank = { rank: userIndex + 1, total: leaderboard.length };
           }
         } else {
-          console.log('No profile in database, trying to create one');
           const createdProfile = await createProfile(fallbackProfile);
           if (createdProfile) {
             userProfile = createdProfile;
-            console.log('Profile created in database');
           }
         }
       } catch (dbError) {
-        console.warn('Database error, using mock data:', dbError);
+        // Database error, using mock data
       }
 
       // Set all data (either real or mock)
@@ -133,10 +149,9 @@ export function UserProfile() {
       setUserReports(reports);
       setUserRank(leaderboardRank);
 
-      console.log('User data loaded successfully');
+
 
     } catch (error) {
-      console.error('Error loading user data:', error);
       // Even on error, set mock data so user sees something
       const fallbackProfile: Profile = {
         id: user.id,
@@ -241,22 +256,22 @@ export function UserProfile() {
       {/* Main Content */}
       <div className="flex justify-center items-start px-4 py-5">
         <div className="w-full max-w-4xl">
-          
+
           {/* Profile Header */}
           <div className="flex justify-between items-center p-4 mb-4">
             <div className="flex items-start gap-4">
               <div className="w-32 h-32 rounded-full bg-gradient-to-br from-[#12B5ED] to-[#0ea5e1] flex items-center justify-center text-white text-4xl font-bold">
                 {profile?.avatar_url ? (
-                  <img 
-                    src={profile.avatar_url} 
-                    alt={profile.full_name || 'Profile'} 
+                  <img
+                    src={profile.avatar_url}
+                    alt={profile.full_name || 'Profile'}
                     className="w-full h-full rounded-full object-cover"
                   />
                 ) : (
                   profile?.full_name?.charAt(0) || user.email?.charAt(0).toUpperCase()
                 )}
               </div>
-              
+
               <div className="h-32 flex flex-col justify-center">
                 <h1 className="text-2xl font-bold text-[#121717] mb-1">
                   {profile?.full_name || user.email?.split('@')[0] || 'User'}
@@ -266,8 +281,8 @@ export function UserProfile() {
                 </p>
               </div>
             </div>
-            
-            <Button 
+
+            <Button
               asChild
               className="bg-[#F0F2F5] hover:bg-gray-200 text-[#121717] text-sm font-bold px-4 h-10 rounded-xl"
             >
@@ -295,8 +310,8 @@ export function UserProfile() {
               <h3 className="text-base font-medium text-[#121717]">Eco Hero</h3>
             </div>
             <div className="h-2 rounded-full bg-[#DBE3E5] mb-3">
-              <div 
-                className="h-2 rounded-full bg-[#121717]" 
+              <div
+                className="h-2 rounded-full bg-[#121717]"
                 style={{ width: `${getEcoHeroProgress(profile?.eco_hero_level || 'Bronze')}%` }}
               ></div>
             </div>
@@ -306,7 +321,7 @@ export function UserProfile() {
           {/* Activity Summary */}
           <div className="mb-6">
             <h2 className="text-xl font-bold text-[#121717] mb-3 px-4">Activity Summary</h2>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 px-4">
               <div className="p-6 rounded-xl border border-[#DBE3E5]">
                 <h3 className="text-base text-[#121717] mb-2">Reports Submitted</h3>
@@ -378,7 +393,7 @@ export function UserProfile() {
           {/* Recent Activity */}
           <div className="mb-6">
             <h2 className="text-xl font-bold text-[#121717] mb-3 px-4">Recent Activity</h2>
-            
+
             <div className="space-y-4 px-4">
               {activities.length === 0 ? (
                 <div className="p-8 text-center text-[#61808A] bg-[#F0F2F5] rounded-xl">
@@ -392,14 +407,14 @@ export function UserProfile() {
                       <div className="flex items-center gap-2">
                         <span className="text-lg">{getActivityIcon(activity)}</span>
                         <p className={`text-sm font-medium ${getActivityStatusColor(activity)}`}>
-                          {activity.type === 'report_submitted' ? 'Approved' : 
-                           activity.type === 'cleanup_joined' ? 'Completed' : 
+                          {activity.type === 'report_submitted' ? 'Approved' :
+                           activity.type === 'cleanup_joined' ? 'Completed' :
                            activity.type === 'volunteer_hours' ? 'Logged' : 'Achievement'}
                         </p>
                       </div>
                       <h3 className="text-base font-bold text-[#121717]">{activity.title}</h3>
                       <p className="text-sm text-[#61808A]">
-                        {formatDate(activity.created_at)} 
+                        {formatDate(activity.created_at)}
                         {activity.metadata?.location && ` | ${activity.metadata.location}`}
                       </p>
                       <p className="text-sm text-[#61808A]">{activity.description}</p>
@@ -407,7 +422,7 @@ export function UserProfile() {
                         <p className="text-sm font-medium text-green-600">+{activity.points_earned} points</p>
                       )}
                     </div>
-                    
+
                     {/* Placeholder for activity image */}
                     <div className="w-32 h-24 bg-gradient-to-br from-[#12B5ED]/20 to-[#0ea5e1]/20 rounded-lg flex items-center justify-center ml-4">
                       <span className="text-2xl">{getActivityIcon(activity)}</span>
@@ -421,7 +436,7 @@ export function UserProfile() {
           {/* Leaderboard */}
           <div className="mb-6">
             <h2 className="text-xl font-bold text-[#121717] mb-3 px-4">Leaderboard</h2>
-            
+
             <div className="flex overflow-hidden rounded-xl bg-white shadow-sm border p-4 mx-4">
               <div className="flex-1 space-y-4">
                 <div className="space-y-1">
@@ -432,14 +447,14 @@ export function UserProfile() {
                     Out of {userRank?.total || 0} users in Mumbai
                   </p>
                 </div>
-                <Button 
+                <Button
                   asChild
                   className="bg-[#F0F2F5] text-[#121717] hover:bg-gray-200 text-sm h-8"
                 >
                   <Link to="/leaderboard">View Full Leaderboard</Link>
                 </Button>
               </div>
-              
+
               {/* Leaderboard illustration */}
               <div className="w-32 h-32 bg-gradient-to-br from-yellow-200 to-orange-300 rounded-xl flex items-center justify-center ml-4">
                 <span className="text-4xl">🏆</span>
@@ -449,7 +464,7 @@ export function UserProfile() {
 
           {/* Action Buttons */}
           <div className="flex flex-wrap justify-between gap-3 p-4 mb-6">
-            <Button 
+            <Button
               asChild
               className="bg-[#F0F2F5] text-[#121717] hover:bg-gray-200 font-bold"
             >
@@ -458,8 +473,8 @@ export function UserProfile() {
                 Privacy Settings
               </Link>
             </Button>
-            
-            <Button 
+
+            <Button
               onClick={signOut}
               className="bg-[#F0F2F5] text-[#121717] hover:bg-gray-200 font-bold"
             >

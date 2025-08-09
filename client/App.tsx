@@ -32,6 +32,7 @@ import { DetailedDrive } from "./pages/DetailedDrive";
 import ResetPassword from "./pages/ResetPassword";
 import { EditProfile } from "./pages/EditProfile";
 
+
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -52,6 +53,7 @@ const App = () => (
             <Route path="/contact" element={<Contact />} />
             <Route path="/partner" element={<Partner />} />
             <Route path="/privacy" element={<Privacy />} />
+
 
             {/* Protected routes - authentication required */}
             <Route path="/report" element={<ProtectedRoute><Report /></ProtectedRoute>} />

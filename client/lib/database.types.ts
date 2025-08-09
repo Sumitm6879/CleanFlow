@@ -60,7 +60,7 @@ export interface Database {
           latitude: number
           longitude: number
           severity: 'low' | 'moderate' | 'severe'
-          status: 'pending' | 'approved' | 'rejected'
+          status: 'pending' | 'approved' | 'rejected' | 'resolved'
           type: 'pollution' | 'cleanup'
           photos: string[]
           created_at: string
@@ -77,7 +77,7 @@ export interface Database {
           latitude: number
           longitude: number
           severity: 'low' | 'moderate' | 'severe'
-          status?: 'pending' | 'approved' | 'rejected'
+          status?: 'pending' | 'approved' | 'rejected' | 'resolved'
           type?: 'pollution' | 'cleanup'
           photos?: string[]
           created_at?: string
@@ -93,7 +93,7 @@ export interface Database {
           latitude?: number
           longitude?: number
           severity?: 'low' | 'moderate' | 'severe'
-          status?: 'pending' | 'approved' | 'rejected'
+          status?: 'pending' | 'approved' | 'rejected' | 'resolved'
           type?: 'pollution' | 'cleanup'
           photos?: string[]
           updated_at?: string
@@ -134,7 +134,7 @@ export interface Database {
           metadata?: any | null
         }
       }
-      drive: {
+      drives: {
         Row: {
           id: string
           title: string
@@ -149,6 +149,8 @@ export interface Database {
           contact_phone: string | null
           location: string
           area: string
+          latitude: number | null
+          longitude: number | null
           date: string
           time: string
           duration: string
@@ -178,6 +180,8 @@ export interface Database {
           contact_phone?: string | null
           location: string
           area: string
+          latitude?: number | null
+          longitude?: number | null
           date: string
           time: string
           duration: string
@@ -205,6 +209,8 @@ export interface Database {
           contact_phone?: string | null
           location?: string
           area?: string
+          latitude?: number | null
+          longitude?: number | null
           date?: string
           time?: string
           duration?: string
@@ -258,5 +264,5 @@ export interface Database {
 export type Profile = Database['public']['Tables']['profiles']['Row']
 export type Report = Database['public']['Tables']['reports']['Row']
 export type Activity = Database['public']['Tables']['activities']['Row']
-export type Drive = Database['public']['Tables']['drive']['Row']
+export type Drive = Database['public']['Tables']['drives']['Row']
 export type DriveParticipant = Database['public']['Tables']['drive_participants']['Row']

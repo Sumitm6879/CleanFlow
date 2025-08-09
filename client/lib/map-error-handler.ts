@@ -10,30 +10,27 @@ export function installMapErrorHandler() {
   const originalConsoleError = console.error;
   const originalConsoleWarn = console.warn;
 
-  // More aggressive error filtering
-  const isAbortError = (args: any[]) => {
+  // More specific error filtering for MapLibre only
+  const isMapLibreAbortError = (args: any[]) => {
     const errorString = (JSON.stringify(args) || '').toLowerCase();
-    return errorString.includes('aborterror') ||
-           errorString.includes('signal is aborted') ||
-           errorString.includes('aborted without reason') ||
-           errorString.includes('requestcancelled') ||
-           errorString.includes('request cancelled') ||
-           errorString.includes('maplibre') ||
-           (errorString.includes('tile') && errorString.includes('abort'));
+    // Only suppress if it's clearly a MapLibre/map tile abort error
+    return (errorString.includes('maplibre') && (errorString.includes('abort') || errorString.includes('cancelled'))) ||
+           (errorString.includes('tile') && errorString.includes('abort')) ||
+           (errorString.includes('openstreetmap') && errorString.includes('abort'));
   };
 
   // Intercept console.error
   console.error = (...args: any[]) => {
-    if (isAbortError(args)) {
-      return; // Completely silent for abort errors
+    if (isMapLibreAbortError(args)) {
+      return; // Completely silent for MapLibre abort errors
     }
     originalConsoleError.apply(console, args);
   };
 
   // Intercept console.warn as well
   console.warn = (...args: any[]) => {
-    if (isAbortError(args)) {
-      return; // Completely silent for abort errors
+    if (isMapLibreAbortError(args)) {
+      return; // Completely silent for MapLibre abort errors
     }
     originalConsoleWarn.apply(console, args);
   };
@@ -50,13 +47,11 @@ export function installMapErrorHandler() {
         errorStr = String(error || '').toLowerCase();
       }
 
-      if (error?.name === 'AbortError' ||
-          error?.name === 'RequestCancelled' ||
-          error?.message?.includes('signal is aborted') ||
-          error?.message?.includes('aborted without reason') ||
-          error?.message?.includes('request cancelled') ||
-          errorStr.includes('aborterror') ||
-          errorStr.includes('requestcancelled') ||
+      // Only suppress if it's clearly a MapLibre/map-related abort error
+      if ((error?.name === 'AbortError' &&
+           (errorStr.includes('maplibre') || errorStr.includes('tile') || errorStr.includes('openstreetmap'))) ||
+          (error?.message?.includes('signal is aborted') &&
+           (errorStr.includes('maplibre') || errorStr.includes('tile'))) ||
           errorStr.includes('maplibre')) {
         event.preventDefault();
         event.stopPropagation();
@@ -85,13 +80,11 @@ export function installMapErrorHandler() {
 
       const errorStr = (message + errorJson).toLowerCase();
 
-      if (error?.name === 'AbortError' ||
-          error?.name === 'RequestCancelled' ||
-          errorStr.includes('signal is aborted') ||
-          errorStr.includes('aborted without reason') ||
-          errorStr.includes('request cancelled') ||
-          errorStr.includes('aborterror') ||
-          errorStr.includes('requestcancelled') ||
+      // Only suppress if it's clearly a MapLibre/map-related abort error
+      if ((error?.name === 'AbortError' &&
+           (errorStr.includes('maplibre') || errorStr.includes('tile') || errorStr.includes('openstreetmap'))) ||
+          (errorStr.includes('signal is aborted') &&
+           (errorStr.includes('maplibre') || errorStr.includes('tile'))) ||
           errorStr.includes('maplibre')) {
         event.preventDefault();
         event.stopPropagation();
@@ -113,37 +106,20 @@ export function installMapErrorHandler() {
   // Also try to catch errors at document level
   document.addEventListener('error', handleError, true);
 
-  // Monkey-patch fetch to handle AbortErrors at source
-  const originalFetch = window.fetch;
-  window.fetch = async (...args) => {
-    try {
-      return await originalFetch.apply(window, args);
-    } catch (error: any) {
-      if (error?.name === 'AbortError' ||
-          error?.message?.includes('signal is aborted') ||
-          error?.message?.includes('aborted without reason')) {
-        // Return a resolved promise to completely suppress the error
-        return new Response(null, { status: 499, statusText: 'Request cancelled' });
-      }
-      throw error;
-    }
-  };
+  // Note: Removed fetch monkey-patch as it was interfering with legitimate requests
+  // The promise rejection and error handlers above should be sufficient for MapLibre
 
   errorHandlerInstalled = true;
-  const timestamp = new Date().toISOString();
-  console.log(`🛡️ Enhanced MapLibre error suppression ACTIVE (${timestamp})`);
 
   // Return cleanup function
   return () => {
     console.error = originalConsoleError;
     console.warn = originalConsoleWarn;
-    window.fetch = originalFetch;
     window.removeEventListener('unhandledrejection', handleUnhandledRejection, true);
     window.removeEventListener('error', handleError, true);
     window.removeEventListener('rejectionhandled', handleUnhandledRejection, true);
     document.removeEventListener('error', handleError, true);
     errorHandlerInstalled = false;
-    console.log('🔧 MapLibre error handler removed');
   };
 }
 
