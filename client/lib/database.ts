@@ -1,66 +1,16 @@
 import { supabase } from './supabase'
 import { Database, Profile, Report, Activity, Drive, DriveParticipant } from './database.types'
 
-// Utility function to properly log errors
-function logError(context: string, error: any, additionalInfo?: any) {
-  console.group(`🚨 ${context}`);
-  console.error('Error Message:', error?.message || 'Unknown error');
-  console.error('Error Code:', error?.code || 'No code');
-  console.error('Error Details:', error?.details || 'No details');
-  console.error('Error Hint:', error?.hint || 'No hint');
-  if (additionalInfo) {
-    console.error('Additional Info:', additionalInfo);
-  }
-  console.error('Full Error Object:', error);
-  console.error('Error Type:', typeof error);
-  console.error('Error Constructor:', error?.constructor?.name);
-  console.groupEnd();
-}
-
-// Version check - helps confirm new code is loaded
-const timestamp = new Date().toISOString();
-console.log(`🔥 DATABASE MODULE LOADED - VERSION 3.12 (${timestamp}) - BULLETPROOF ERROR HANDLING 🔥`);
-
-// Test function to verify error logging is working
-(window as any).testErrorLogging = () => {
-  console.log('🧪 Testing error logging...');
-  logError('TEST ERROR', {
-    message: 'This is a test error',
-    code: 'TEST123',
-    details: 'Testing error logging functionality'
-  }, { test: true });
-  console.log('✅ Test complete - check above for detailed error output');
-};
-
-// Add storage debugging functions to window for easy testing
-(window as any).checkStorageHealth = checkStorageHealth;
-(window as any).testStorageUpload = testStorageUpload;
-(window as any).debugStorage = async () => {
-  console.log('🔧 Running complete storage diagnostics...');
-
-  const health = await checkStorageHealth();
-  console.log('Storage Health:', health);
-
-  if (health.working) {
-    const uploadTest = await testStorageUpload('avatars');
-    console.log('Upload Test Result:', uploadTest);
-  }
-
-  console.log('✅ Storage diagnostics complete');
-};
-
 // Storage health check
 export async function checkStorageHealth(): Promise<{ buckets: string[], working: boolean, details: any }> {
   try {
     const { data: buckets, error } = await supabase.storage.listBuckets();
 
     if (error) {
-      console.warn('Storage check failed:', error.message);
       return { buckets: [], working: false, details: { error: error.message } };
     }
 
     const bucketNames = buckets?.map(b => b.name) || [];
-    console.log('Available storage buckets:', bucketNames);
 
     // Check authentication status
     const { data: { user }, error: userError } = await supabase.auth.getUser();
@@ -73,15 +23,12 @@ export async function checkStorageHealth(): Promise<{ buckets: string[], working
       userError: userError?.message
     };
 
-    console.log('Storage health details:', details);
-
     return {
       buckets: bucketNames,
       working: true,
       details
     };
   } catch (err) {
-    console.warn('Storage health check error:', err);
     return {
       buckets: [],
       working: false,
@@ -96,8 +43,6 @@ export async function checkStorageHealth(): Promise<{ buckets: string[], working
 // Test storage upload permissions
 export async function testStorageUpload(bucket: 'avatars' | 'drive-images' = 'avatars'): Promise<boolean> {
   try {
-    console.log('Testing storage upload permissions for bucket:', bucket);
-
     // Create a small test file
     const testContent = new Blob(['test'], { type: 'text/plain' });
     const testFile = new File([testContent], 'test.txt', { type: 'text/plain' });
@@ -108,7 +53,6 @@ export async function testStorageUpload(bucket: 'avatars' | 'drive-images' = 'av
       .upload(`test-${Date.now()}.txt`, testFile, { upsert: true });
 
     if (error) {
-      console.error('Storage test upload failed:', error);
       return false;
     }
 
@@ -117,10 +61,8 @@ export async function testStorageUpload(bucket: 'avatars' | 'drive-images' = 'av
       await supabase.storage.from(bucket).remove([data.path]);
     }
 
-    console.log('Storage upload test successful');
     return true;
   } catch (err) {
-    console.error('Storage test error:', err);
     return false;
   }
 }
@@ -128,8 +70,6 @@ export async function testStorageUpload(bucket: 'avatars' | 'drive-images' = 'av
 // Database health check with enhanced connectivity handling
 export async function checkDatabaseHealth(): Promise<boolean> {
   try {
-    console.log('🔍 Checking database connectivity...');
-
     // Test basic connection with a simple count query
     const { data, error } = await supabase
       .from('profiles')
@@ -138,36 +78,21 @@ export async function checkDatabaseHealth(): Promise<boolean> {
     if (error) {
       // Specific error codes we can handle
       if (error.code === '42P01') {
-        console.warn('Database tables not found - setup required');
         return false;
       }
 
       // Network connectivity issues
       if (error.message?.includes('Failed to fetch') ||
           error.message?.includes('fetch')) {
-        console.warn('🚨 Supabase connectivity issue - may be offline or network problem');
-        console.warn('This is normal in development - using mock data instead');
         return false;
       }
 
-      console.error('Database health check failed:', {
-        message: error.message,
-        code: error.code
-      });
       return false;
     }
 
-    console.log('Database health check passed');
     return true;
   } catch (err: any) {
-    if (err?.message?.includes('Failed to fetch') ||
-        err?.message?.includes('fetch') ||
-        err?.name === 'TypeError') {
-      console.warn('🚨 Network connectivity issue with Supabase');
-      console.warn('Using offline mode with mock data');
-    } else {
-      console.error('Database health check error:', err);
-    }
+    // Network connectivity issue - using offline mode
     return false;
   }
 }
@@ -189,29 +114,14 @@ export async function getProfile(userId: string): Promise<Profile | null> {
 
     if (error) {
       // Handle specific error cases
-      if (error.code === 'PGRST116') {
-        // Row not found - this is expected for new users
-        console.log('Profile not found for user:', userId)
+      if (error.code === 'PGRST116' || error.code === '42P01') {
         return null
-      } else if (error.code === '42P01') {
-        // Table doesn't exist
-        console.error('Profiles table does not exist. Please run the database migration.')
-        return null
-      } else {
-        console.error('Error fetching profile:', {
-          message: error.message,
-          details: error.details,
-          hint: error.hint,
-          code: error.code,
-          userId
-        })
       }
       return null
     }
 
     return data
   } catch (err) {
-    console.error('Unexpected error in getProfile:', err)
     return null
   }
 }
@@ -225,19 +135,11 @@ export async function createProfile(profile: ProfileInsert): Promise<Profile | n
       .single()
 
     if (error) {
-      console.error('Error creating profile:', {
-        message: error.message,
-        details: error.details,
-        hint: error.hint,
-        code: error.code,
-        profileData: profile
-      })
       return null
     }
 
     return data
   } catch (err) {
-    console.error('Unexpected error in createProfile:', err)
     return null
   }
 }
@@ -251,7 +153,6 @@ export async function updateProfile(userId: string, updates: ProfileUpdate): Pro
     .single()
 
   if (error) {
-    logError('Error updating profile', error, { userId, updates })
     return null
   }
 
@@ -270,7 +171,7 @@ export async function getReports(type?: 'pollution' | 'cleanup'): Promise<Report
           avatar_url
         )
       `)
-      .in('status', ['pending', 'approved'])
+      .in('status', ['pending', 'approved', 'resolved'])
       .order('created_at', { ascending: false })
 
     if (type) {
@@ -281,22 +182,13 @@ export async function getReports(type?: 'pollution' | 'cleanup'): Promise<Report
 
     if (error) {
       if (error.code === '42P01') {
-        console.warn('Reports table does not exist yet. Using static data only.')
         return []
-      } else {
-        logError('Error fetching reports', error, {
-          type: type || 'all',
-          timestamp: new Date().toISOString(),
-          function: 'getReports'
-        })
       }
       return []
     }
 
-    console.log('Successfully fetched', data?.length || 0, 'reports from database')
     return data || []
   } catch (err) {
-    logError('Unexpected error in getReports', err, { type: type || 'all' })
     return []
   }
 }
@@ -310,27 +202,53 @@ export async function getUserReports(userId: string): Promise<Report[]> {
       .order('created_at', { ascending: false })
 
     if (error) {
-      logError('Error fetching user reports', error, { userId })
       return []
     }
 
     return data || []
   } catch (err) {
-    logError('Unexpected error in getUserReports', err, { userId })
     return []
+  }
+}
+
+export async function markReportAsResolved(reportId: string, userId: string): Promise<boolean> {
+  try {
+    // First verify that the user owns this report
+    const { data: existingReport, error: fetchError } = await supabase
+      .from('reports')
+      .select('user_id')
+      .eq('id', reportId)
+      .single();
+
+    if (fetchError) {
+      return false;
+    }
+
+    if (existingReport?.user_id !== userId) {
+      return false;
+    }
+
+    // Update the report status to resolved
+    const { error: updateError } = await supabase
+      .from('reports')
+      .update({
+        status: 'resolved',
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', reportId);
+
+    if (updateError) {
+      return false;
+    }
+
+    return true;
+  } catch (err) {
+    return false;
   }
 }
 
 export async function createReport(report: ReportInsert): Promise<Report | null> {
   try {
-    console.log('📝 Creating report:', {
-      title: report.title,
-      location: report.location_name,
-      type: report.type,
-      severity: report.severity,
-      status: report.status || 'pending'
-    });
-
     const { data, error } = await supabase
       .from('reports')
       .insert(report)
@@ -338,22 +256,13 @@ export async function createReport(report: ReportInsert): Promise<Report | null>
       .single()
 
     if (error) {
-      logError('Error creating report', error, report)
       return null
     }
-
-    console.log('✅ Report created successfully:', {
-      id: data.id,
-      title: data.title,
-      status: data.status,
-      type: data.type
-    });
 
     // Calculate points based on severity
     const points = report.severity === 'severe' ? 20 : report.severity === 'moderate' ? 15 : 10
 
     // Create activity for report submission
-    console.log('🎯 Creating activity for report submission...');
     const activity = await createActivity({
       user_id: report.user_id,
       type: 'report_submitted',
@@ -368,72 +277,9 @@ export async function createReport(report: ReportInsert): Promise<Report | null>
       }
     });
 
-    if (activity) {
-      console.log('✅ Activity created successfully, user earned:', points, 'points');
-    }
-
-    // Update user profile to increment reports_submitted and impact_score
-    console.log('📊 Updating user profile stats...');
-    try {
-      const { data: currentProfile, error: profileError } = await supabase
-        .from('profiles')
-        .select('reports_submitted, impact_score')
-        .eq('id', report.user_id)
-        .single();
-
-      if (!profileError && currentProfile) {
-        const { error: updateError } = await supabase
-          .from('profiles')
-          .update({
-            reports_submitted: currentProfile.reports_submitted + 1,
-            impact_score: currentProfile.impact_score + points,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', report.user_id);
-
-        if (updateError) {
-          console.warn('Failed to update profile stats:', updateError);
-        } else {
-          console.log('✅ Profile stats updated successfully');
-        }
-      } else {
-        console.warn('Could not fetch current profile for stats update:', profileError);
-      }
-    } catch (profileUpdateError) {
-      console.warn('Error updating profile stats:', profileUpdateError);
-    }
-
     return data
   } catch (err) {
-    logError('Unexpected error in createReport', err, report)
     return null
-  }
-}
-
-export async function markReportAsResolved(reportId: string, userId: string): Promise<boolean> {
-  try {
-    console.log('✅ Marking report as resolved:', { reportId, userId });
-
-    const { error } = await supabase
-      .from('reports')
-      .update({
-        status: 'resolved',
-        updated_at: new Date().toISOString(),
-        reviewed_by: userId,
-        reviewed_at: new Date().toISOString()
-      })
-      .eq('id', reportId);
-
-    if (error) {
-      logError('Error marking report as resolved', error, { reportId, userId });
-      return false;
-    }
-
-    console.log('✅ Report marked as resolved successfully');
-    return true;
-  } catch (err) {
-    logError('Unexpected error in markReportAsResolved', err, { reportId, userId });
-    return false;
   }
 }
 
@@ -456,17 +302,13 @@ export async function getUserActivities(userId: string, limit = 10): Promise<Act
 
     if (error) {
       if (error.code === '42P01') {
-        console.warn('Activities table does not exist yet. Using mock data.')
         return []
-      } else {
-        logError('Error fetching user activities', error, { userId })
       }
       return []
     }
 
     return data || []
   } catch (err) {
-    logError('Unexpected error in getUserActivities', err, { userId })
     return []
   }
 }
@@ -479,7 +321,6 @@ export async function createActivity(activity: ActivityInsert): Promise<Activity
     .single()
 
   if (error) {
-    logError('Error creating activity', error, activity)
     return null
   }
 
@@ -509,43 +350,6 @@ export async function uploadPhoto(file: File, bucket: 'reports' | 'avatars' | 'd
       })
 
     if (error) {
-      // Handle specific error types
-      if (error.message?.includes('row-level security policy') || error.message?.includes('policy')) {
-        console.warn(`🚨 STORAGE SETUP NEEDED:`);
-        console.warn(`1. Go to Supabase Dashboard → Storage`);
-        console.warn(`2. Create buckets: 'avatars' and 'drive-images' (make them public)`);
-        console.warn(`3. Set policies to allow authenticated users`);
-
-        // Show user-friendly error message
-        if (typeof window !== 'undefined') {
-          alert('Storage not configured. Go to Supabase Dashboard ��� Storage → Create buckets: "avatars" and "drive-images" (make them public)');
-        }
-
-        logError('Storage RLS policy violation', error, {
-          bucket,
-          fileName,
-          filePath,
-          helpMessage: 'Create storage buckets via Supabase Dashboard'
-        });
-      } else if (error.message?.includes('Bucket not found') || error.message?.includes('bucket does not exist')) {
-        console.warn(`Storage bucket '${bucket}' not found. Please run the Supabase setup SQL to create storage buckets.`);
-        logError('Storage bucket not found', error, {
-          bucket,
-          fileName,
-          filePath,
-          helpMessage: 'Run MINIMAL_STORAGE_FIX.sql to create storage buckets'
-        });
-      } else if (error.message?.includes('JWT') || error.message?.includes('unauthorized')) {
-        console.warn('User authentication issue during upload');
-        logError('Authentication error during upload', error, {
-          bucket,
-          fileName,
-          filePath,
-          helpMessage: 'User may need to re-authenticate'
-        });
-      } else {
-        logError('Error uploading file', error, { bucket, fileName, filePath })
-      }
       return null
     }
 
@@ -555,7 +359,6 @@ export async function uploadPhoto(file: File, bucket: 'reports' | 'avatars' | 'd
 
     return data.publicUrl
   } catch (err) {
-    logError('Unexpected error in uploadPhoto', err, { bucket, fileName })
     return null
   }
 }
@@ -572,7 +375,6 @@ export async function deletePhoto(bucket: 'reports' | 'avatars' | 'drive-images'
     .remove([filePath])
 
   if (error) {
-    logError('Error deleting file', error, { bucket, filePath })
     return false
   }
 
@@ -599,7 +401,6 @@ export async function searchLocations(query: string): Promise<Array<{
       lon: parseFloat(item.lon)
     }))
   } catch (error) {
-    logError('Location search error', error, { query })
     return []
   }
 }
@@ -615,22 +416,13 @@ export async function getLeaderboard(limit = 50): Promise<Profile[]> {
 
     if (error) {
       if (error.code === '42P01') {
-        console.warn('Profiles table does not exist yet. Using mock data.')
         return []
-      } else {
-        console.error('Error fetching leaderboard:', {
-          message: error.message,
-          details: error.details,
-          hint: error.hint,
-          code: error.code
-        })
       }
       return []
     }
 
     return data || []
   } catch (err) {
-    console.error('Unexpected error in getLeaderboard:', err)
     return []
   }
 }
@@ -652,7 +444,7 @@ export async function updateUserRanking(): Promise<void> {
       }
     }
   } catch (error) {
-    logError('Error updating rankings', error)
+    // Silent error handling for scheduled functions
   }
 }
 
@@ -666,16 +458,13 @@ export async function getDrives(): Promise<Drive[]> {
 
     if (error) {
       if (error.code === '42P01') {
-        console.warn('Drives table does not exist yet.')
         return []
       }
-      logError('Error fetching drives', error)
       return []
     }
 
     return data || []
   } catch (err) {
-    console.error('Unexpected error in getDrives:', err)
     return []
   }
 }
@@ -689,21 +478,14 @@ export async function getDriveById(id: string): Promise<Drive | null> {
       .single()
 
     if (error) {
-      if (error.code === 'PGRST116') {
-        console.warn('Drive not found:', id)
+      if (error.code === 'PGRST116' || error.code === '42P01') {
         return null
       }
-      if (error.code === '42P01') {
-        console.warn('Drives table does not exist yet.')
-        return null
-      }
-      logError('Error fetching drive', error, { id })
       return null
     }
 
     return data
   } catch (err) {
-    console.error('Unexpected error in getDriveById:', err)
     return null
   }
 }
@@ -724,22 +506,17 @@ export async function createDrive(driveData: Database['public']['Tables']['drive
       .single()
 
     if (error) {
-      logError('Error creating drive', error, driveData)
       return null
     }
 
-    console.log('Drive created successfully:', data.id)
     return data
   } catch (err) {
-    console.error('Unexpected error in createDrive:', err)
     return null
   }
 }
 
 export async function joinCleanupDrive(driveId: string, userId: string): Promise<boolean> {
   try {
-    console.log('🚀 Attempting to join cleanup drive:', { driveId, userId });
-
     // Check if user is already registered
     const { data: existingParticipation } = await supabase
       .from('drive_participants')
@@ -750,27 +527,21 @@ export async function joinCleanupDrive(driveId: string, userId: string): Promise
       .single()
 
     if (existingParticipation) {
-      console.log('✅ User already registered for this drive')
       return true
     }
 
     // Add user to participants
-    const { data: participationData, error: participationError } = await supabase
+    const { error: participationError } = await supabase
       .from('drive_participants')
       .insert({
         drive_id: driveId,
         user_id: userId,
         status: 'registered'
       })
-      .select()
-      .single()
 
     if (participationError) {
-      logError('Error joining drive - participation', participationError, { driveId, userId })
       return false
     }
-
-    console.log('✅ Successfully added user to drive participants:', participationData);
 
     // Update drive registered volunteer count
     const { error: updateError } = await supabase.rpc('increment_drive_volunteers', {
@@ -818,7 +589,7 @@ export async function joinCleanupDrive(driveId: string, userId: string): Promise
     }
 
     // Add activity record
-    const activity = await createActivity({
+    await createActivity({
       user_id: userId,
       type: 'cleanup_joined',
       title: 'Joined Cleanup Drive',
@@ -827,14 +598,8 @@ export async function joinCleanupDrive(driveId: string, userId: string): Promise
       metadata: { drive_id: driveId }
     })
 
-    if (activity) {
-      console.log('✅ Activity created for drive registration:', activity.id);
-    }
-
-    console.log('🎉 Successfully completed drive registration for user:', userId);
     return true
   } catch (err) {
-    console.error('Unexpected error in joinCleanupDrive:', err)
     return false
   }
 }
@@ -849,7 +614,6 @@ export async function leaveCleanupDrive(driveId: string, userId: string): Promis
       .eq('user_id', userId)
 
     if (deleteError) {
-      logError('Error leaving drive - participation', deleteError, { driveId, userId })
       return false
     }
 
@@ -883,15 +647,12 @@ export async function leaveCleanupDrive(driveId: string, userId: string): Promis
 
     return true
   } catch (err) {
-    console.error('Unexpected error in leaveCleanupDrive:', err)
     return false
   }
 }
 
 export async function getUserDriveParticipation(userId: string): Promise<DriveParticipant[]> {
   try {
-    console.log('🔍 Fetching drive participation for user:', userId);
-
     const { data, error } = await supabase
       .from('drive_participants')
       .select(`
@@ -903,19 +664,13 @@ export async function getUserDriveParticipation(userId: string): Promise<DrivePa
 
     if (error) {
       if (error.code === '42P01') {
-        console.warn('Drive participants table does not exist yet.')
         return []
       }
-      logError('Error fetching user drive participation', error, { userId })
       return []
     }
 
-    console.log('✅ Found', data?.length || 0, 'drive registrations for user:', userId);
-    console.log('Drive participation data:', data);
-
     return data || []
   } catch (err) {
-    console.error('Unexpected error in getUserDriveParticipation:', err)
     return []
   }
 }
@@ -931,13 +686,11 @@ export async function isUserJoinedDrive(driveId: string, userId: string): Promis
       .single()
 
     if (error && error.code !== 'PGRST116') {
-      logError('Error checking drive participation', error, { driveId, userId })
       return false
     }
 
     return !!data
   } catch (err) {
-    console.error('Unexpected error in isUserJoinedDrive:', err)
     return false
   }
 }

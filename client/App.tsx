@@ -31,7 +31,7 @@ import { ParticipationTracking } from "./pages/ParticipationTracking";
 import { DetailedDrive } from "./pages/DetailedDrive";
 import ResetPassword from "./pages/ResetPassword";
 import { EditProfile } from "./pages/EditProfile";
-import { Debug } from "./pages/Debug";
+
 
 const queryClient = new QueryClient();
 
@@ -53,7 +53,7 @@ const App = () => (
             <Route path="/contact" element={<Contact />} />
             <Route path="/partner" element={<Partner />} />
             <Route path="/privacy" element={<Privacy />} />
-            <Route path="/debug" element={<Debug />} />
+
 
             {/* Protected routes - authentication required */}
             <Route path="/report" element={<ProtectedRoute><Report /></ProtectedRoute>} />

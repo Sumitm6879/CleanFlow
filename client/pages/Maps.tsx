@@ -3,8 +3,8 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Header } from "@/components/Header";
 import { useAuth } from "@/contexts/AuthContext";
-import { getReports, searchLocations, markReportAsResolved } from "@/lib/database";
-import { Report } from "@/lib/database.types";
+import { getReports, searchLocations, markReportAsResolved, getDrives } from "@/lib/database";
+import { Report, Drive } from "@/lib/database.types";
 import Map, { Marker, Popup } from 'react-map-gl/maplibre';
 import 'maplibre-gl/dist/maplibre-gl.css';
 
@@ -117,6 +117,7 @@ export default function Maps() {
   }>>([]);
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [reports, setReports] = useState<Report[]>([]);
+  const [drives, setDrives] = useState<Drive[]>([]);
   const [loading, setLoading] = useState(true);
   const [resolvingReport, setResolvingReport] = useState<string | null>(null);
   const [viewState, setViewState] = useState({
@@ -140,35 +141,45 @@ export default function Maps() {
           }
         } catch (error) {
           // Ignore cleanup errors
-          console.debug('Map cleanup:', error);
+          // Map cleanup error
         }
       }
     };
   }, []);
 
-  // Load reports on component mount and tab change
+  // Load data on component mount and tab change
   useEffect(() => {
-    loadReports();
+    loadData();
   }, [activeTab]);
 
-  const loadReports = async () => {
+  const loadData = async () => {
     setLoading(true);
 
     try {
-      console.log('Loading ALL reports for tab:', activeTab);
+      if (activeTab === 'cleanup') {
 
-      // Fetch all reports from database (not user-specific)
-      const dynamicReports = await getReports(activeTab as 'pollution' | 'cleanup');
-      console.log('All user reports loaded successfully:', dynamicReports.length);
+        // Load drives for cleanup tab
+        const drivesData = await getDrives();
 
-      // Also include static demo data for better UX
-      const staticFiltered = staticReports.filter(r => r.type === activeTab);
+        setDrives(drivesData);
+        setReports([]); // Clear reports when showing drives
 
-      // Combine all reports (both static demo and real user reports)
-      const allReports = [...staticFiltered, ...dynamicReports];
-      console.log('Total reports shown:', allReports.length, '(demo:', staticFiltered.length, ', user reports:', dynamicReports.length, ')');
+      } else {
 
-      setReports(allReports);
+        // Fetch all reports from database (not user-specific)
+        const dynamicReports = await getReports(activeTab as 'pollution' | 'cleanup');
+        // Filter out resolved reports for pollution tab
+        const filteredReports = dynamicReports.filter(report => report.status !== 'resolved');
+
+        // Also include static demo data for better UX
+        const staticFiltered = staticReports.filter(r => r.type === activeTab);
+
+        // Combine all reports (both static demo and real user reports)
+        const allReports = [...staticFiltered, ...filteredReports];
+
+        setReports(allReports);
+        setDrives([]); // Clear drives when showing reports
+      }
     } catch (error) {
       console.warn('Could not load reports from database, showing demo data only:');
       if (error instanceof Error) {
@@ -235,6 +246,31 @@ export default function Maps() {
     setShowSearchResults(false);
   };
 
+  const handleResolveReport = async (reportId: string) => {
+    if (!user?.id) {
+      alert('Please log in to resolve reports');
+      return;
+    }
+
+    setResolvingReport(reportId);
+
+    try {
+      const success = await markReportAsResolved(reportId, user.id);
+      if (success) {
+        // Remove the resolved report from the current view
+        setReports(prev => prev.filter(report => report.id !== reportId));
+        alert('Report marked as resolved successfully!');
+      } else {
+        alert('Failed to resolve report. This could be because:\n1. You can only resolve your own reports\n2. Database needs to be updated to support resolved status\n\nCheck browser console for details.');
+      }
+    } catch (error) {
+      console.error('Error resolving report:', error);
+      alert('An error occurred while resolving the report.');
+    } finally {
+      setResolvingReport(null);
+    }
+  };
+
   const getMarkerColor = (report: Report) => {
     if (report.status === 'resolved') {
       return 'text-gray-400';
@@ -260,31 +296,17 @@ export default function Maps() {
     });
   };
 
-  const handleResolveReport = async (reportId: string) => {
-    if (!user) return;
-
-    setResolvingReport(reportId);
-    try {
-      const success = await markReportAsResolved(reportId, user.id);
-      if (success) {
-        // Update the local state to reflect the resolved status
-        setReports(prev => prev.map(report =>
-          report.id === reportId
-            ? { ...report, status: 'resolved' as const }
-            : report
-        ));
-        setActiveReport(prev =>
-          prev?.id === reportId
-            ? { ...prev, status: 'resolved' as const }
-            : prev
-        );
-      }
-    } catch (error) {
-      console.error('Error resolving report:', error);
-    } finally {
-      setResolvingReport(null);
+  const getDriveMarkerColor = (drive: Drive) => {
+    switch (drive.status) {
+      case 'upcoming': return 'text-blue-600';
+      case 'ongoing': return 'text-green-600';
+      case 'completed': return 'text-gray-500';
+      case 'cancelled': return 'text-red-400';
+      default: return 'text-blue-600';
     }
   };
+
+
 
   return (
     <div className="min-h-screen bg-white">
@@ -352,7 +374,63 @@ export default function Maps() {
               </div>
             ) : (
               <div className="space-y-0">
-                {reports.length === 0 ? (
+                {activeTab === 'cleanup' ? (
+                  drives.length === 0 ? (
+                    <div className="p-6 text-center text-[#61808A]">
+                      <p>No cleanup drives available</p>
+                    </div>
+                  ) : (
+                    drives.map((drive) => (
+                      <div
+                        key={drive.id}
+                        className="p-3 border-b border-gray-100 bg-white hover:bg-gray-50 transition-colors cursor-pointer"
+                        onClick={() => {
+                          if (drive.latitude && drive.longitude) {
+                            setViewState({
+                              longitude: drive.longitude,
+                              latitude: drive.latitude,
+                              zoom: 16
+                            });
+                          }
+                        }}
+                      >
+                        <div className="flex gap-4">
+                          {drive.images && drive.images.length > 0 ? (
+                            <img
+                              src={drive.images[0]}
+                              alt={drive.title}
+                              className="w-20 md:w-24 h-12 md:h-16 object-cover rounded-lg flex-shrink-0"
+                            />
+                          ) : (
+                            <div className="w-20 md:w-24 h-12 md:h-16 bg-blue-100 rounded-lg flex-shrink-0 flex items-center justify-center">
+                              <svg className="w-6 h-6 text-blue-600" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/>
+                              </svg>
+                            </div>
+                          )}
+
+                          <div className="flex-1 min-w-0">
+                            <h3 className="font-semibold text-[#121717] text-sm md:text-base mb-1 line-clamp-1">
+                              {drive.title}
+                            </h3>
+                            <p className="text-xs md:text-sm text-[#61808A] mb-1">{drive.location}</p>
+                            <p className="text-xs text-[#61808A] mb-1">{new Date(drive.date).toLocaleDateString()} at {drive.time}</p>
+                            <p className="text-xs md:text-sm text-[#61808A] leading-relaxed line-clamp-2">
+                              {drive.description}
+                            </p>
+                          </div>
+
+                          <div className="flex flex-col justify-start pt-1 items-center">
+                            <div className="w-6 h-6 flex items-center justify-center">
+                              <div className={`w-3 h-3 rounded-full ${getDriveMarkerColor(drive).replace('text-', 'bg-')}`}></div>
+                            </div>
+                            <div className="text-xs text-gray-500 mt-1 capitalize">{drive.status}</div>
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )
+                ) : reports.length === 0 ? (
                   <div className="p-6 text-center text-[#61808A]">
                     <p>No {activeTab} reports available</p>
                   </div>
@@ -404,7 +482,7 @@ export default function Maps() {
                           </p>
                         </div>
 
-                        <div className="flex flex-col justify-start pt-1">
+                        <div className="flex flex-col justify-start pt-1 items-center space-y-2">
                           <div className="w-6 h-6 flex items-center justify-center">
                             <div className={`w-3 h-3 rounded-full ${
                               report.status === 'resolved'
@@ -416,8 +494,21 @@ export default function Maps() {
                                   : 'bg-yellow-500'
                             }`}></div>
                           </div>
-                          {report.status === 'resolved' && (
-                            <div className="text-xs text-gray-500 mt-1">✓ Resolved</div>
+                          {report.status === 'resolved' ? (
+                            <div className="text-xs text-gray-500">✓ Resolved</div>
+                          ) : (
+                            user?.id === report.user_id && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleResolveReport(report.id);
+                                }}
+                                disabled={resolvingReport === report.id}
+                                className="text-xs bg-green-600 text-white px-2 py-1 rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                {resolvingReport === report.id ? 'Resolving...' : 'Mark Resolved'}
+                              </button>
+                            )
                           )}
                         </div>
                       </div>
@@ -467,6 +558,26 @@ export default function Maps() {
                   </svg>
                 </button>
               </Marker>
+            ))}
+
+            {drives.map((drive) => (
+              drive.latitude && drive.longitude && (
+                <Marker key={`drive-${drive.id}`} longitude={drive.longitude} latitude={drive.latitude} anchor="bottom">
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault();
+                      // Set active drive
+                    }}
+                    className="p-0 bg-transparent border-0 cursor-pointer hover:scale-110 transition-transform"
+                  >
+                    <svg className={`w-7 h-7 ${getDriveMarkerColor(drive)}`} fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M12 2C8 2 5 5.03 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.97-3-7-7-7z" />
+                      <circle cx="12" cy="9" r="2.5" fill="white" />
+                      <path d="M10 7h4v1h-4zM9 8h6v1h-6zM10 9h4v1h-4z" fill="currentColor" />
+                    </svg>
+                  </button>
+                </Marker>
+              )
             ))}
 
             {activeReport && (

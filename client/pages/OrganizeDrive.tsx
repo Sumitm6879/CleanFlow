@@ -210,14 +210,11 @@ export default function OrganizeDrive() {
         expected_impact: expectedImpact,
       };
 
-      console.log('Creating drive:', driveData);
 
       // Upload images first if any selected
       let imageUrls: string[] = [];
       if (selectedImages.length > 0) {
-        console.log('Uploading', selectedImages.length, 'images...');
         imageUrls = await uploadDriveImages(selectedImages);
-        console.log('Uploaded images:', imageUrls);
       }
 
       // Update drive data with uploaded image URLs

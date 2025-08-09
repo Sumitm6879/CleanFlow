@@ -180,7 +180,6 @@ export default function CleanupDrives() {
           } as CleanupDriveDisplay)); // Fallback to mock data if no drives in database
 
       setDrives(driveDisplays);
-      console.log('Loaded drives:', driveDisplays.length);
 
     } catch (error) {
       console.error('Error loading drives:', error);

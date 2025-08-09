@@ -67,15 +67,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
           setLoading(false)
 
-          console.log('Initial session loaded:', {
-            hasSession: !!session,
-            hasUser: !!session?.user,
-            userEmail: session?.user?.email,
-            expiresAt: session?.expires_at
-          })
         }
       } catch (error) {
-        console.error('Error in getInitialSession:', error)
         if (mounted) {
           setLoading(false)
         }
@@ -90,39 +83,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (!mounted) return
 
-      console.log('Auth state change:', event, !!session, session?.user?.email)
 
       // Handle different auth events
       if (event === 'SIGNED_OUT') {
         setSession(null)
         setUser(null)
         setProfile(null)
-        console.log('User signed out')
       } else if (event === 'TOKEN_REFRESHED') {
         setSession(session)
         setUser(session?.user ?? null)
         if (session?.user) {
-          loadUserProfile(session.user.id).catch(console.error)
+          loadUserProfile(session.user.id).catch(() => {})
         }
-        console.log('Session token refreshed')
       } else if (event === 'SIGNED_IN') {
         setSession(session)
         setUser(session?.user ?? null)
-        console.log('User signed in:', session?.user?.email)
 
         // Create profile for new users and load profile
         if (session?.user) {
-          createUserProfile(session.user).catch(error => {
-            console.error('Background profile creation failed:', error)
-          })
-          loadUserProfile(session.user.id).catch(console.error)
+          createUserProfile(session.user).catch(() => {})
+          loadUserProfile(session.user.id).catch(() => {})
         }
       } else {
         // For other events, update state
         setSession(session)
         setUser(session?.user ?? null)
         if (session?.user) {
-          loadUserProfile(session.user.id).catch(console.error)
+          loadUserProfile(session.user.id).catch(() => {})
         } else {
           setProfile(null)
         }
@@ -142,7 +129,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const existingProfile = await getProfile(user.id)
       if (!existingProfile) {
-        console.log('Creating new profile for user:', user.id)
         const newProfile = await createProfile({
           id: user.id,
           email: user.email || '',
@@ -151,15 +137,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           location: 'Mumbai'
         })
         if (newProfile) {
-          console.log('Profile created successfully:', newProfile.id)
-        } else {
-          console.warn('Profile creation failed for user:', user.id)
+          // Profile created successfully
         }
       } else {
-        console.log('Existing profile found for user:', user.id)
+        // Existing profile found
       }
     } catch (error) {
-      console.error('Error in profile management:', error)
+      // Error in profile management
     }
   }
 
@@ -228,13 +212,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const { error } = await supabase.auth.signOut()
 
       if (error) {
-        console.error('Sign out error:', error)
-        // Even if there's an error, we've cleared local state
-      } else {
-        console.log('Successfully signed out')
+        // Sign out error - but local state is cleared
       }
     } catch (error) {
-      console.error('Unexpected sign out error:', error)
+      // Unexpected sign out error - but local state is cleared
       // Still clear local state even on error
       setUser(null)
       setSession(null)
