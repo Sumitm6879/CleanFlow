@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { NGOFooter } from "@/components/Footer";
+import { Footer } from "@/components/Footer";
 
 export default function NGOInfo() {
   const upcomingDrives = [
@@ -259,7 +259,7 @@ export default function NGOInfo() {
         </div>
       </main>
 
-      <NGOFooter />
+      <Footer />
     </div>
   );
 }

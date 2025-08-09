@@ -22,6 +22,9 @@ import Contact from "./pages/Contact";
 import Partner from "./pages/Partner";
 import Privacy from "./pages/Privacy";
 import { CleanupDriveOrganization } from "./pages/CleanupDriveOrganization";
+import CleanupDrives from "./pages/CleanupDrives";
+import OrganizeDrive from "./pages/OrganizeDrive";
+import DrivePhotos from "./pages/DrivePhotos";
 import { UserProfile } from "./pages/UserProfile";
 import { Leaderboard } from "./pages/Leaderboard";
 import { ParticipationTracking } from "./pages/ParticipationTracking";
@@ -54,7 +57,9 @@ const App = () => (
             <Route path="/report" element={<ProtectedRoute><Report /></ProtectedRoute>} />
             <Route path="/ngo/:id" element={<ProtectedRoute><NGOInfo /></ProtectedRoute>} />
             <Route path="/ngo-partners" element={<ProtectedRoute><NGOInfo /></ProtectedRoute>} />
-            <Route path="/organize" element={<ProtectedRoute><CleanupDriveOrganization /></ProtectedRoute>} />
+            <Route path="/organize" element={<ProtectedRoute><CleanupDrives /></ProtectedRoute>} />
+            <Route path="/organize-drive" element={<ProtectedRoute><OrganizeDrive /></ProtectedRoute>} />
+            <Route path="/drive-photos" element={<ProtectedRoute><DrivePhotos /></ProtectedRoute>} />
             <Route path="/cleanupDriveOrganization" element={<ProtectedRoute><CleanupDriveOrganization /></ProtectedRoute>} />
             <Route path="/CleanupDriveOrganization" element={<ProtectedRoute><CleanupDriveOrganization /></ProtectedRoute>} />
             <Route path="/profile" element={<ProtectedRoute><UserProfile /></ProtectedRoute>} />

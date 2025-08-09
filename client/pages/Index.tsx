@@ -1,67 +1,111 @@
-import { Link } from "react-router-dom";
+import { Link, Navigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
-import heroImg from "../assets/images/mumbai_city.png"
-import user1 from '../assets/images/user1.png'
-import user2 from '../assets/images/user2.png'
-import user3 from '../assets/images/user3.png'
-import meethi_river_cleanup  from '../assets/images/meethi_river_cleanup.png'
+import { useAuth } from "@/contexts/AuthContext";
+import heroImg from "../assets/images/mumbai_city.png";
+import user1 from "../assets/images/user1.jpeg";
+import user2 from "../assets/images/user2.jpeg";
+import user3 from "../assets/images/user3.jpeg";
+import prog from "../assets/images/track_prog.webp";
+import pollution_report from "../assets/images/pollution_report.webp";
+import meethi_river_cleanup from "../assets/images/meethi_river_cleanup.png";
 
 export default function Index() {
+  const { user, loading } = useAuth();
+
+  // Show loading spinner while checking auth
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-[#12B5ED]"></div>
+      </div>
+    );
+  }
+
+  // If user is logged in, redirect to maps page
+  if (user) {
+    return <Navigate to="/maps" replace />;
+  }
+
   return (
     <div className="min-h-screen bg-white">
       <Header />
 
       <main className="w-full">
-        {/* Hero Section */}
-        <section className="w-full px-4 sm:px-8 lg:px-40 py-5">
-          <div className="max-w-6xl mx-auto">
-            <div className="flex flex-col lg:flex-row items-center gap-8 py-10">
-              {/* Hero Image */}
-              <div className="w-full lg:w-1/2">
-                <img
-                  src={heroImg}
-                  alt="Mumbai waterfront"
-                  className="w-full h-80 object-cover rounded-xl"
-                />
-              </div>
+        {/* Hero Section - Full Viewport */}
+<section className="relative w-full h-screen">
+  {/* Background Image */}
+  <img
+    src={heroImg}
+    alt="Mumbai waterfront during sunset"
+    className="absolute inset-0 w-full h-full object-cover"
+  />
 
-              {/* Hero Content */}
-              <div className="w-full lg:w-1/2 flex flex-col justify-center gap-8">
-                <div className="space-y-2">
-                  <h1 className="text-4xl md:text-5xl font-black text-[#121717] leading-tight -tracking-wider">
-                    Let's Restore Mumbai's Waters Together
-                  </h1>
-                  <p className="text-lg text-[#121717] leading-relaxed">
-                    Join our mission to clean rivers — one report at a time.
-                  </p>
-                </div>
+  {/* Overlay for readability */}
+  <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/30 to-black/70"></div>
 
-                <div className="flex flex-wrap gap-3">
-                  <Button
-                    asChild
-                    className="bg-[#12B5ED] hover:bg-[#0ea5e1] text-[#121717] text-lg font-bold px-5 h-12 rounded-xl"
-                  >
-                    <Link to="/signup">Join the Movement</Link>
-                  </Button>
-                  <Button
-                    asChild
-                    variant="secondary"
-                    className="bg-[#F0F2F5] hover:bg-gray-200 text-[#121717] text-lg font-bold px-5 h-12 rounded-xl"
-                  >
-                    <Link to="/maps">See the Map</Link>
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
+  {/* Hero Content */}
+  <div className="absolute inset-0 flex flex-col items-center justify-center text-center text-white px-6">
+    {/* Main Heading */}
+    <h1 className="text-4xl md:text-6xl font-extrabold leading-tight max-w-4xl drop-shadow-lg">
+      Together, We Can Restore Mumbai's Waters
+    </h1>
+
+    {/* Subheading */}
+    <p className="mt-5 text-lg md:text-xl max-w-2xl text-gray-200 leading-relaxed">
+      CleanFlow Mumbai unites citizens, volunteers, and technology to fight
+      water pollution. By reporting problems, joining cleanup drives, and
+      tracking our progress, you become part of the solution our city’s rivers need.
+    </p>
+
+    {/* Action Buttons */}
+    <div className="flex flex-wrap gap-4 mt-8 justify-center">
+      <Button
+        asChild
+        className="bg-[#12B5ED] hover:bg-[#0ea5e1] text-[#121717] text-lg font-bold px-6 py-3 rounded-xl shadow-lg transition-transform transform hover:scale-105"
+      >
+        <Link to="/signup">Join the Movement</Link>
+      </Button>
+      <Button
+        asChild
+        variant="secondary"
+        className="bg-[#F0F2F5] hover:bg-gray-200 text-[#121717] text-lg font-bold px-6 py-3 rounded-xl shadow-lg transition-transform transform hover:scale-105"
+      >
+        <Link to="/maps">Explore the Map</Link>
+      </Button>
+    </div>
+
+    {/* Stats (still visible in hero, optional) */}
+    {/* <div className="mt-12 flex flex-wrap justify-center gap-8">
+      <div className="text-center">
+        <p className="text-3xl font-bold">1,250+</p>
+        <p className="text-sm text-gray-300">Reports Submitted</p>
+      </div>
+      <div className="text-center">
+        <p className="text-3xl font-bold">75+</p>
+        <p className="text-sm text-gray-300">Cleanups Organized</p>
+      </div>
+      <div className="text-center">
+        <p className="text-3xl font-bold">500+</p>
+        <p className="text-sm text-gray-300">Volunteers Joined</p>
+      </div>
+    </div> */}
+  </div>
+</section>
+
 
         {/* About CleanFlow Mumbai */}
         <section className="w-full px-4 sm:px-8 lg:px-40 py-5">
           <div className="max-w-6xl mx-auto">
-            <h2 className="text-2xl font-bold text-[#121717] mb-5 px-4">About CleanFlow Mumbai</h2>
+            <h2 className="text-2xl font-bold text-[#121717] mb-5 text-center">
+              About CleanFlow Mumbai
+            </h2>
+            <p className="text-center text-[#61808A] max-w-3xl mx-auto">
+              CleanFlow Mumbai connects citizens, NGOs, and local authorities
+              through real-time pollution reports, cleanup drives, and
+              transparent impact tracking.
+            </p>
           </div>
         </section>
 
@@ -69,25 +113,34 @@ export default function Index() {
         <section className="w-full px-4 sm:px-8 lg:px-40 py-10">
           <div className="max-w-6xl mx-auto px-4">
             <div className="space-y-10">
-              <div className="space-y-4 max-w-4xl">
-                <h2 className="text-4xl font-black text-[#121717] leading-tight -tracking-wide">Our Mission</h2>
+              <div className="space-y-4 max-w-4xl mx-auto text-center">
+                <h2 className="text-4xl font-black text-[#121717] leading-tight -tracking-wide">
+                  Our Mission
+                </h2>
                 <p className="text-lg text-[#121717] leading-relaxed">
-                  CleanFlow Mumbai is dedicated to restoring the health of Mumbai's rivers and water bodies through community engagement and technology. We believe that by working together, we can make a significant impact on the cleanliness of our city's waterways.
+                  CleanFlow Mumbai is dedicated to restoring the health of
+                  Mumbai's rivers and water bodies through community engagement
+                  and technology. We believe that by working together, we can
+                  make a significant impact on the cleanliness of our city's
+                  waterways.
                 </p>
               </div>
 
               {/* Features Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                 <div className="space-y-3 pb-3">
                   <img
-                    src={meethi_river_cleanup}
+                    src={pollution_report}
                     alt="Report Pollution"
                     className="w-full h-32 object-cover rounded-xl"
                   />
-                  <div className="space-y-1">
-                    <h3 className="text-lg font-medium text-[#121717]">Report Pollution</h3>
+                  <div className="space-y-1 text-center">
+                    <h3 className="text-lg font-medium text-[#121717]">
+                      Report Pollution
+                    </h3>
                     <p className="text-sm text-[#61808A] leading-relaxed">
-                      Easily report pollution incidents with our app, providing real-time data for effective action.
+                      Easily report pollution incidents with our app, providing
+                      real-time data for effective action.
                     </p>
                   </div>
                 </div>
@@ -98,24 +151,30 @@ export default function Index() {
                     alt="Organize Cleanup Drives"
                     className="w-full h-32 object-cover rounded-xl"
                   />
-                  <div className="space-y-1">
-                    <h3 className="text-lg font-medium text-[#121717]">Organize Cleanup Drives</h3>
+                  <div className="space-y-1 text-center">
+                    <h3 className="text-lg font-medium text-[#121717]">
+                      Organize Cleanup Drives
+                    </h3>
                     <p className="text-sm text-[#61808A] leading-relaxed">
-                      Create and manage cleanup drives, mobilizing volunteers to tackle pollution hotspots.
+                      Create and manage cleanup drives, mobilizing volunteers
+                      to tackle pollution hotspots.
                     </p>
                   </div>
                 </div>
 
                 <div className="space-y-3 pb-3">
                   <img
-                    src={meethi_river_cleanup}
+                    src={prog}
                     alt="Track Progress"
                     className="w-full h-32 object-cover rounded-xl"
                   />
-                  <div className="space-y-1">
-                    <h3 className="text-lg font-medium text-[#121717]">Track Progress</h3>
+                  <div className="space-y-1 text-center">
+                    <h3 className="text-lg font-medium text-[#121717]">
+                      Track Progress
+                    </h3>
                     <p className="text-sm text-[#61808A] leading-relaxed">
-                      Monitor the progress of cleanup efforts and see the positive impact of your contributions.
+                      Monitor the progress of cleanup efforts and see the
+                      positive impact of your contributions.
                     </p>
                   </div>
                 </div>
@@ -124,22 +183,29 @@ export default function Index() {
           </div>
         </section>
 
-        {/* Impact Section */}
+        {/* Our Impact */}
         <section className="w-full px-4 sm:px-8 lg:px-40 py-5">
           <div className="max-w-6xl mx-auto">
-            <h2 className="text-2xl font-bold text-[#121717] mb-5 px-4">Our Impact</h2>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 px-4">
+            <h2 className="text-2xl font-bold text-[#121717] mb-5 text-center">
+              Our Impact
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 px-4 text-center">
               <div className="bg-[#F0F2F5] rounded-xl p-6 space-y-2">
-                <h3 className="text-lg font-medium text-[#121717]">Reports Submitted</h3>
+                <h3 className="text-lg font-medium text-[#121717]">
+                  Reports Submitted
+                </h3>
                 <p className="text-2xl font-bold text-[#121717]">1,250</p>
               </div>
               <div className="bg-[#F0F2F5] rounded-xl p-6 space-y-2">
-                <h3 className="text-lg font-medium text-[#121717]">Cleanups Organized</h3>
+                <h3 className="text-lg font-medium text-[#121717]">
+                  Cleanups Organized
+                </h3>
                 <p className="text-2xl font-bold text-[#121717]">75</p>
               </div>
               <div className="bg-[#F0F2F5] rounded-xl p-6 space-y-2">
-                <h3 className="text-lg font-medium text-[#121717]">Volunteers Joined</h3>
+                <h3 className="text-lg font-medium text-[#121717]">
+                  Volunteers Joined
+                </h3>
                 <p className="text-2xl font-bold text-[#121717]">500</p>
               </div>
             </div>
@@ -149,69 +215,33 @@ export default function Index() {
         {/* Upcoming Drives */}
         <section className="w-full px-4 sm:px-8 lg:px-40 py-5">
           <div className="max-w-6xl mx-auto">
-            <h2 className="text-2xl font-bold text-[#121717] mb-5 px-4">Upcoming Drives</h2>
-
-            <div className="px-4">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                <div className="bg-white rounded-xl shadow-sm border p-0 overflow-hidden">
-                  <img
-                    src="https://images.unsplash.com/photo-1547036967-23d11aacaee0?w=500&h=300&fit=crop"
-                    alt="Meethi River Cleanup"
-                    className="w-full h-36 object-cover"
-                  />
-                  <div className="p-4 space-y-4">
-                    <div className="space-y-1">
-                      <h3 className="text-lg font-medium text-[#121717]">Meethi River Cleanup</h3>
-                      <p className="text-sm text-[#61808A]">Location: Bandra, Date: July 15th</p>
-                    </div>
-                    <Button
-                      variant="secondary"
-                      className="w-full bg-[#F0F2F5] text-[#121717] text-sm font-bold h-10 rounded-xl"
-                    >
-                      Join Now
-                    </Button>
-                  </div>
-                </div>
-
-                <div className="bg-white rounded-xl shadow-sm border p-0 overflow-hidden">
-                  <img
-                    src="https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=500&h=300&fit=crop"
-                    alt="Juhu Beach Cleanup"
-                    className="w-full h-36 object-cover"
-                  />
-                  <div className="p-4 space-y-4">
-                    <div className="space-y-1">
-                      <h3 className="text-lg font-medium text-[#121717]">Juhu Beach Cleanup</h3>
-                      <p className="text-sm text-[#61808A]">Location: Juhu, Date: July 22nd</p>
-                    </div>
-                    <Button
-                      variant="secondary"
-                      className="w-full bg-[#F0F2F5] text-[#121717] text-sm font-bold h-10 rounded-xl"
-                    >
-                      Join Now
-                    </Button>
-                  </div>
-                </div>
-
-                <div className="bg-white rounded-xl shadow-sm border p-0 overflow-hidden">
-                  <img
-                    src="https://images.unsplash.com/photo-1502138330085-dead8a18d8e1?w=500&h=300&fit=crop"
-                    alt="Community Cleanup Drive"
-                    className="w-full h-36 object-cover"
-                  />
-                  <div className="p-4 space-y-4">
-                    <div className="space-y-1">
-                      <h3 className="text-lg font-medium text-[#121717]">Community Cleanup Drive</h3>
-                      <p className="text-sm text-[#61808A]">Location: Powai, Date: July 29th</p>
-                    </div>
-                    <Button
-                      variant="secondary"
-                      className="w-full bg-[#F0F2F5] text-[#121717] text-sm font-bold h-10 rounded-xl"
-                    >
-                      Join Now
-                    </Button>
-                  </div>
-                </div>
+            <h2 className="text-2xl font-bold text-[#121717] mb-5 text-center">
+              Upcoming Drives
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 px-4">
+              <div className="bg-[#F0F2F5] rounded-xl p-6 text-center">
+                <h3 className="text-lg font-medium text-[#121717]">
+                  Meethi River Cleanup
+                </h3>
+                <p className="text-sm text-[#61808A] mt-2">
+                  August 20, 2025 — Andheri, Mumbai
+                </p>
+              </div>
+              <div className="bg-[#F0F2F5] rounded-xl p-6 text-center">
+                <h3 className="text-lg font-medium text-[#121717]">
+                  Versova Beach Restoration
+                </h3>
+                <p className="text-sm text-[#61808A] mt-2">
+                  August 28, 2025 — Versova, Mumbai
+                </p>
+              </div>
+              <div className="bg-[#F0F2F5] rounded-xl p-6 text-center">
+                <h3 className="text-lg font-medium text-[#121717]">
+                  Powai Lake Awareness Drive
+                </h3>
+                <p className="text-sm text-[#61808A] mt-2">
+                  September 5, 2025 — Powai, Mumbai
+                </p>
               </div>
             </div>
           </div>
@@ -220,57 +250,45 @@ export default function Index() {
         {/* Testimonials */}
         <section className="w-full px-4 sm:px-8 lg:px-40 py-5">
           <div className="max-w-6xl mx-auto">
-            <h2 className="text-2xl font-bold text-[#121717] mb-5 px-4">Testimonials</h2>
-
-            <div className="px-4">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                <div className="text-center space-y-4 pt-4">
-                  <div className="w-25 h-25 mx-auto rounded-full overflow-hidden">
-                    <img
-                      src={user1}
-                      alt="Anya Sharma"
-                      className="w-25 h-25 object-cover"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <p className="text-lg font-medium text-[#121717] leading-relaxed">
-                      "CleanFlow Mumbai has made it so easy to contribute to a cleaner city. The app is user-friendly, and the community is incredibly supportive."
-                    </p>
-                    <p className="text-sm text-[#61808A]">Anya Sharma, Volunteer</p>
-                  </div>
-                </div>
-
-                <div className="text-center space-y-4 pt-4">
-                  <div className="w-25 h-25 mx-auto rounded-full overflow-hidden">
-                    <img
-                      src={user2}
-                      alt="Rajesh Patel"
-                      className="w-25 h-25 object-cover"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <p className="text-lg font-medium text-[#121717] leading-relaxed">
-                      "Our NGO has seen a significant increase in volunteer participation thanks to CleanFlow Mumbai. It's a powerful tool for environmental action."
-                    </p>
-                    <p className="text-sm text-[#61808A]">Rajesh Patel, NGO Representative</p>
-                  </div>
-                </div>
-
-                <div className="text-center space-y-4 pt-4">
-                  <div className="w-25 h-25 mx-auto rounded-full overflow-hidden">
-                    <img
-                      src={user3}
-                      alt="Priya Verma"
-                      className="w-25 h-25 object-cover"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <p className="text-lg font-medium text-[#121717] leading-relaxed">
-                      "I love being able to track the progress of cleanup efforts and see the tangible impact we're making. It's truly inspiring."
-                    </p>
-                    <p className="text-sm text-[#61808A]">Priya Verma, Community Member</p>
-                  </div>
-                </div>
+            <h2 className="text-2xl font-bold text-[#121717] mb-5 text-center">
+              Testimonials
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 px-4">
+              <div className="bg-[#F0F2F5] rounded-xl p-6 text-center">
+                <img
+                  src={user1}
+                  alt="User"
+                  className="w-16 h-16 mx-auto rounded-full"
+                />
+                <p className="mt-4 text-[#121717]">
+                  “CleanFlow Mumbai made it so easy to report pollution in my
+                  area. The response was quick and effective!”
+                </p>
+                <p className="mt-2 font-bold text-[#121717]">Amit Sharma</p>
+              </div>
+              <div className="bg-[#F0F2F5] rounded-xl p-6 text-center">
+                <img
+                  src={user2}
+                  alt="User"
+                  className="w-16 h-16 mx-auto rounded-full"
+                />
+                <p className="mt-4 text-[#121717]">
+                  “I joined a cleanup drive through CleanFlow Mumbai and met so
+                  many inspiring people dedicated to making a difference.”
+                </p>
+                <p className="mt-2 font-bold text-[#121717]">Priya Mehta</p>
+              </div>
+              <div className="bg-[#F0F2F5] rounded-xl p-6 text-center">
+                <img
+                  src={user3}
+                  alt="User"
+                  className="w-16 h-16 mx-auto rounded-full"
+                />
+                <p className="mt-4 text-[#121717]">
+                  “The progress tracking feature motivates me to keep
+                  contributing. It’s great to see real impact!”
+                </p>
+                <p className="mt-2 font-bold text-[#121717]">Rahul Desai</p>
               </div>
             </div>
           </div>

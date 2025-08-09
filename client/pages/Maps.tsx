@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { MapHeader } from "@/components/Header";
+import { Header } from "@/components/Header";
 import { useAuth } from "@/contexts/AuthContext";
 import { getReports, searchLocations } from "@/lib/database";
 import { Report } from "@/lib/database.types";
@@ -153,23 +153,23 @@ export default function Maps() {
   const loadReports = async () => {
     setLoading(true);
 
-    // Always start with static data for immediate display
-    const staticFiltered = staticReports.filter(r => r.type === activeTab);
-    setReports(staticFiltered);
-    console.log('Showing static reports:', staticFiltered.length);
-
     try {
-      console.log('Loading dynamic reports for tab:', activeTab);
+      console.log('Loading ALL reports for tab:', activeTab);
+
+      // Fetch all reports from database (not user-specific)
       const dynamicReports = await getReports(activeTab as 'pollution' | 'cleanup');
-      console.log('Dynamic reports loaded successfully:', dynamicReports.length);
+      console.log('All user reports loaded successfully:', dynamicReports.length);
 
-      // Combine static and dynamic reports
-      const combinedReports = [...staticFiltered, ...dynamicReports];
-      console.log('Total reports:', combinedReports.length, '(static:', staticFiltered.length, ', dynamic:', dynamicReports.length, ')');
+      // Also include static demo data for better UX
+      const staticFiltered = staticReports.filter(r => r.type === activeTab);
 
-      setReports(combinedReports);
+      // Combine all reports (both static demo and real user reports)
+      const allReports = [...staticFiltered, ...dynamicReports];
+      console.log('Total reports shown:', allReports.length, '(demo:', staticFiltered.length, ', user reports:', dynamicReports.length, ')');
+
+      setReports(allReports);
     } catch (error) {
-      console.warn('Could not load dynamic reports, showing static data only:');
+      console.warn('Could not load reports from database, showing demo data only:');
       if (error instanceof Error) {
         console.warn('Error message:', error.message);
         console.warn('Error stack:', error.stack);
@@ -180,7 +180,10 @@ export default function Maps() {
           string: String(error)
         });
       }
-      // Static data is already set, so just log the issue
+
+      // Fallback to static demo data only
+      const staticFiltered = staticReports.filter(r => r.type === activeTab);
+      setReports(staticFiltered);
     } finally {
       setLoading(false);
     }
@@ -256,7 +259,7 @@ export default function Maps() {
 
   return (
     <div className="min-h-screen bg-white">
-      <MapHeader />
+      <Header/>
 
       <main className="w-full flex flex-col lg:flex-row">
         {/* Sidebar */}

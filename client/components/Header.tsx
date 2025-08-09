@@ -39,7 +39,8 @@ export function Header() {
     { path: '/maps', label: 'Explore' },
     ...(user ? [{ path: '/report', label: 'Report Issue' }] : []),
     { path: '/leaderboard', label: 'Leaderboard' },
-    { path: '/organize', label: 'Organize Drive' },
+    { path: '/organize', label: 'Cleanup Drives' },
+    { path: '/drive-photos', label: 'Drive Photos' },
     { path: '/about', label: 'About' },
     { path: '/contact', label: 'Contact' },
   ];

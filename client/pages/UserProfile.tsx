@@ -3,8 +3,8 @@ import { Link } from 'react-router-dom';
 import { Header } from '@/components/Header';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
-import { getProfile, createProfile, getUserActivities, getUserReports, getLeaderboard } from '@/lib/database';
-import { Profile, Activity, Report } from '@/lib/database.types';
+import { getProfile, createProfile, getUserActivities, getUserReports, getLeaderboard, getUserDriveParticipation } from '@/lib/database';
+import { Profile, Activity, Report, DriveParticipant } from '@/lib/database.types';
 import { User, LogOut, Settings, Eye } from 'lucide-react';
 
 // Mock data for when database is not available
@@ -50,6 +50,7 @@ export function UserProfile() {
   const [activities, setActivities] = useState<Activity[]>([]);
   const [userReports, setUserReports] = useState<Report[]>([]);
   const [userRank, setUserRank] = useState<{ rank: number; total: number } | null>(null);
+  const [joinedDrives, setJoinedDrives] = useState<DriveParticipant[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -103,6 +104,10 @@ export function UserProfile() {
 
           const dbReports = await getUserReports(user.id);
           reports = dbReports;
+
+          // Load joined drives
+          const dbJoinedDrives = await getUserDriveParticipation(user.id);
+          setJoinedDrives(dbJoinedDrives);
 
           // Calculate real rank
           const leaderboard = await getLeaderboard(500);
@@ -231,29 +236,7 @@ export function UserProfile() {
 
   return (
     <div className="min-h-screen bg-white">
-      {/* Header */}
-      <div className="w-full border-b border-[#E5E8EB]">
-        <div className="flex justify-between items-center px-10 py-3">
-          <Link to="/" className="flex items-center gap-4">
-            <div className="w-4 h-4 bg-[#121717]" style={{
-              clipPath: "polygon(50% 0%, 100% 29%, 100% 71%, 50% 100%, 0% 71%, 0% 29%)"
-            }} />
-            <h1 className="text-lg font-bold text-[#121717]">CleanFlow Mumbai</h1>
-          </Link>
-
-          <div className="flex items-center gap-8">
-            <div className="flex items-center gap-2 bg-[#F0F2F5] rounded-xl px-3 py-2">
-              <svg className="w-5 h-5 text-[#121717]" fill="currentColor" viewBox="0 0 16 18">
-                <path fillRule="evenodd" d="M15.3281 12.7453C14.8945 11.9984 14.25 9.88516 14.25 7.125C14.25 3.67322 11.4518 0.875 8 0.875C4.54822 0.875 1.75 3.67322 1.75 7.125C1.75 9.88594 1.10469 11.9984 0.671094 12.7453C0.445722 13.1318 0.444082 13.6092 0.666796 13.9973C0.889509 14.3853 1.30261 14.6247 1.75 14.625H4.93828C5.23556 16.0796 6.51529 17.1243 8 17.1243C9.48471 17.1243 10.7644 16.0796 11.0617 14.625H14.25C14.6972 14.6244 15.1101 14.3849 15.3326 13.9969C15.5551 13.609 15.5534 13.1317 15.3281 12.7453ZM8 15.875C7.20562 15.8748 6.49761 15.3739 6.23281 14.625H9.76719C9.50239 15.3739 8.79438 15.8748 8 15.875ZM1.75 13.375C2.35156 12.3406 3 9.94375 3 7.125C3 4.36358 5.23858 2.125 8 2.125C10.7614 2.125 13 4.36358 13 7.125C13 9.94141 13.6469 12.3383 14.25 13.375H1.75Z" fill="#121717"/>
-              </svg>
-            </div>
-            
-            <div className="w-10 h-10 rounded-full bg-[#12B5ED] flex items-center justify-center text-white font-bold">
-              {profile?.full_name?.charAt(0) || user.email?.charAt(0).toUpperCase()}
-            </div>
-          </div>
-        </div>
-      </div>
+      <Header />
 
       {/* Main Content */}
       <div className="flex justify-center items-start px-4 py-5">
@@ -337,6 +320,58 @@ export function UserProfile() {
                 <h3 className="text-base text-[#121717] mb-2">Total Volunteer Hours</h3>
                 <p className="text-2xl font-bold text-[#121717]">{profile?.volunteer_hours || 0}</p>
               </div>
+            </div>
+          </div>
+
+          {/* Joined Drives */}
+          <div className="mb-6">
+            <h2 className="text-xl font-bold text-[#121717] mb-3 px-4">Current Drives</h2>
+
+            <div className="space-y-4 px-4">
+              {joinedDrives.length > 0 ? (
+                joinedDrives.map((participation) => {
+                  const drive = (participation as any).drive;
+                  if (!drive) return null;
+
+                  return (
+                    <div key={participation.id} className="flex overflow-hidden rounded-xl bg-white shadow-sm border p-4">
+                      <img
+                        src={drive.images?.[0] || "https://images.unsplash.com/photo-1583212292454-1fe6229603b7?w=120&h=80&fit=crop"}
+                        alt={drive.title}
+                        className="w-24 h-16 object-cover rounded-lg"
+                      />
+                      <div className="flex-1 ml-4 space-y-1">
+                        <h3 className="text-base font-bold text-[#121717]">{drive.title}</h3>
+                        <p className="text-sm text-[#61808A]">
+                          {new Date(drive.date).toLocaleDateString()} at {drive.time}
+                        </p>
+                        <div className="flex items-center space-x-2">
+                          <span className={`px-2 py-1 text-xs rounded-full font-medium ${
+                            participation.status === 'registered' ? 'bg-blue-100 text-blue-800' :
+                            participation.status === 'attended' ? 'bg-green-100 text-green-800' :
+                            'bg-gray-100 text-gray-800'
+                          }`}>
+                            {participation.status.charAt(0).toUpperCase() + participation.status.slice(1)}
+                          </span>
+                          <span className="text-xs text-[#61808A]">
+                            {drive.registered_volunteers}/{drive.max_volunteers} volunteers
+                          </span>
+                        </div>
+                      </div>
+                      <Button asChild variant="outline" size="sm" className="self-center">
+                        <Link to={`/drive/${drive.id}`}>View Details</Link>
+                      </Button>
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="p-8 text-center text-[#61808A] bg-[#F0F2F5] rounded-xl">
+                  <p>No active drive registrations</p>
+                  <p className="text-sm mt-1">
+                    <Link to="/organize" className="text-[#12B5ED] hover:underline">Browse cleanup drives</Link> to join one!
+                  </p>
+                </div>
+              )}
             </div>
           </div>
 

@@ -1,5 +1,5 @@
 import { supabase } from './supabase'
-import { Database, Profile, Report, Activity } from './database.types'
+import { Database, Profile, Report, Activity, Drive, DriveParticipant } from './database.types'
 
 // Utility function to properly log errors
 function logError(context: string, error: any, additionalInfo?: any) {
@@ -444,5 +444,275 @@ export async function updateUserRanking(): Promise<void> {
     }
   } catch (error) {
     logError('Error updating rankings', error)
+  }
+}
+
+// Drive functions
+export async function getDrives(): Promise<Drive[]> {
+  try {
+    const { data, error } = await supabase
+      .from('drive')
+      .select('*')
+      .order('date', { ascending: true })
+
+    if (error) {
+      if (error.code === '42P01') {
+        console.warn('Drive table does not exist yet.')
+        return []
+      }
+      logError('Error fetching drives', error)
+      return []
+    }
+
+    return data || []
+  } catch (err) {
+    console.error('Unexpected error in getDrives:', err)
+    return []
+  }
+}
+
+export async function getDriveById(id: string): Promise<Drive | null> {
+  try {
+    const { data, error } = await supabase
+      .from('drive')
+      .select('*')
+      .eq('id', id)
+      .single()
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        console.warn('Drive not found:', id)
+        return null
+      }
+      if (error.code === '42P01') {
+        console.warn('Drive table does not exist yet.')
+        return null
+      }
+      logError('Error fetching drive', error, { id })
+      return null
+    }
+
+    return data
+  } catch (err) {
+    console.error('Unexpected error in getDriveById:', err)
+    return null
+  }
+}
+
+export async function createDrive(driveData: Database['public']['Tables']['drive']['Insert']): Promise<Drive | null> {
+  try {
+    const { data, error } = await supabase
+      .from('drive')
+      .insert({
+        ...driveData,
+        registered_volunteers: 0,
+        status: 'upcoming',
+        verified: driveData.organizer_type === 'NGO', // Auto-verify NGOs
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .select()
+      .single()
+
+    if (error) {
+      logError('Error creating drive', error, driveData)
+      return null
+    }
+
+    console.log('Drive created successfully:', data.id)
+    return data
+  } catch (err) {
+    console.error('Unexpected error in createDrive:', err)
+    return null
+  }
+}
+
+export async function joinCleanupDrive(driveId: string, userId: string): Promise<boolean> {
+  try {
+    // Check if user is already registered
+    const { data: existingParticipation } = await supabase
+      .from('drive_participants')
+      .select('id')
+      .eq('drive_id', driveId)
+      .eq('user_id', userId)
+      .eq('status', 'registered')
+      .single()
+
+    if (existingParticipation) {
+      console.log('User already registered for this drive')
+      return true
+    }
+
+    // Add user to participants
+    const { error: participationError } = await supabase
+      .from('drive_participants')
+      .insert({
+        drive_id: driveId,
+        user_id: userId,
+        status: 'registered'
+      })
+
+    if (participationError) {
+      logError('Error joining drive - participation', participationError, { driveId, userId })
+      return false
+    }
+
+    // Update drive registered volunteer count
+    const { error: updateError } = await supabase.rpc('increment_drive_volunteers', {
+      drive_id: driveId
+    })
+
+    if (updateError) {
+      // If RPC doesn't exist, try manual update
+      const { data: drive } = await supabase
+        .from('drive')
+        .select('registered_volunteers')
+        .eq('id', driveId)
+        .single()
+
+      if (drive) {
+        await supabase
+          .from('drive')
+          .update({ registered_volunteers: drive.registered_volunteers + 1 })
+          .eq('id', driveId)
+      }
+    }
+
+    // Update user profile cleanup drives count
+    const { error: profileError } = await supabase.rpc('increment_user_drives', {
+      user_id: userId
+    })
+
+    if (profileError) {
+      // If RPC doesn't exist, try manual update
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('cleanup_drives_joined')
+        .eq('id', userId)
+        .single()
+
+      if (profile) {
+        await supabase
+          .from('profiles')
+          .update({
+            cleanup_drives_joined: profile.cleanup_drives_joined + 1,
+            impact_score: (profile as any).impact_score + 10 // Add points for joining
+          })
+          .eq('id', userId)
+      }
+    }
+
+    // Add activity record
+    await createActivity({
+      user_id: userId,
+      type: 'cleanup_joined',
+      title: 'Joined Cleanup Drive',
+      description: `Registered for cleanup drive`,
+      points_earned: 10,
+      metadata: { drive_id: driveId }
+    })
+
+    return true
+  } catch (err) {
+    console.error('Unexpected error in joinCleanupDrive:', err)
+    return false
+  }
+}
+
+export async function leaveCleanupDrive(driveId: string, userId: string): Promise<boolean> {
+  try {
+    // Remove user from participants
+    const { error: deleteError } = await supabase
+      .from('drive_participants')
+      .delete()
+      .eq('drive_id', driveId)
+      .eq('user_id', userId)
+
+    if (deleteError) {
+      logError('Error leaving drive - participation', deleteError, { driveId, userId })
+      return false
+    }
+
+    // Update drive registered volunteer count
+    const { data: drive } = await supabase
+      .from('drive')
+      .select('registered_volunteers')
+      .eq('id', driveId)
+      .single()
+
+    if (drive && drive.registered_volunteers > 0) {
+      await supabase
+        .from('drive')
+        .update({ registered_volunteers: drive.registered_volunteers - 1 })
+        .eq('id', driveId)
+    }
+
+    // Update user profile
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('cleanup_drives_joined')
+      .eq('id', userId)
+      .single()
+
+    if (profile && profile.cleanup_drives_joined > 0) {
+      await supabase
+        .from('profiles')
+        .update({ cleanup_drives_joined: profile.cleanup_drives_joined - 1 })
+        .eq('id', userId)
+    }
+
+    return true
+  } catch (err) {
+    console.error('Unexpected error in leaveCleanupDrive:', err)
+    return false
+  }
+}
+
+export async function getUserDriveParticipation(userId: string): Promise<DriveParticipant[]> {
+  try {
+    const { data, error } = await supabase
+      .from('drive_participants')
+      .select(`
+        *,
+        drive (*)
+      `)
+      .eq('user_id', userId)
+      .eq('status', 'registered')
+
+    if (error) {
+      if (error.code === '42P01') {
+        console.warn('Drive participants table does not exist yet.')
+        return []
+      }
+      logError('Error fetching user drive participation', error, { userId })
+      return []
+    }
+
+    return data || []
+  } catch (err) {
+    console.error('Unexpected error in getUserDriveParticipation:', err)
+    return []
+  }
+}
+
+export async function isUserJoinedDrive(driveId: string, userId: string): Promise<boolean> {
+  try {
+    const { data, error } = await supabase
+      .from('drive_participants')
+      .select('id')
+      .eq('drive_id', driveId)
+      .eq('user_id', userId)
+      .eq('status', 'registered')
+      .single()
+
+    if (error && error.code !== 'PGRST116') {
+      logError('Error checking drive participation', error, { driveId, userId })
+      return false
+    }
+
+    return !!data
+  } catch (err) {
+    console.error('Unexpected error in isUserJoinedDrive:', err)
+    return false
   }
 }

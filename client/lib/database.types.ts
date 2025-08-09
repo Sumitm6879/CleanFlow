@@ -134,6 +134,114 @@ export interface Database {
           metadata?: any | null
         }
       }
+      drive: {
+        Row: {
+          id: string
+          title: string
+          description: string
+          full_description: string
+          organizer_id: string
+          organizer_name: string
+          organizer_type: 'NGO' | 'Community' | 'Individual'
+          organizer_avatar: string | null
+          organizer_bio: string | null
+          contact_email: string
+          contact_phone: string | null
+          location: string
+          area: string
+          date: string
+          time: string
+          duration: string
+          max_volunteers: number
+          registered_volunteers: number
+          status: 'upcoming' | 'ongoing' | 'completed' | 'cancelled'
+          tags: string[]
+          images: string[]
+          verified: boolean
+          requirements: string[]
+          safety_measures: string[]
+          expected_impact: any
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          title: string
+          description: string
+          full_description: string
+          organizer_id: string
+          organizer_name: string
+          organizer_type: 'NGO' | 'Community' | 'Individual'
+          organizer_avatar?: string | null
+          organizer_bio?: string | null
+          contact_email: string
+          contact_phone?: string | null
+          location: string
+          area: string
+          date: string
+          time: string
+          duration: string
+          max_volunteers: number
+          registered_volunteers?: number
+          status?: 'upcoming' | 'ongoing' | 'completed' | 'cancelled'
+          tags?: string[]
+          images?: string[]
+          verified?: boolean
+          requirements?: string[]
+          safety_measures?: string[]
+          expected_impact?: any
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          title?: string
+          description?: string
+          full_description?: string
+          organizer_name?: string
+          organizer_type?: 'NGO' | 'Community' | 'Individual'
+          organizer_avatar?: string | null
+          organizer_bio?: string | null
+          contact_email?: string
+          contact_phone?: string | null
+          location?: string
+          area?: string
+          date?: string
+          time?: string
+          duration?: string
+          max_volunteers?: number
+          registered_volunteers?: number
+          status?: 'upcoming' | 'ongoing' | 'completed' | 'cancelled'
+          tags?: string[]
+          images?: string[]
+          verified?: boolean
+          requirements?: string[]
+          safety_measures?: string[]
+          expected_impact?: any
+          updated_at?: string
+        }
+      }
+      drive_participants: {
+        Row: {
+          id: string
+          drive_id: string
+          user_id: string
+          joined_at: string
+          status: 'registered' | 'attended' | 'cancelled'
+          notes: string | null
+        }
+        Insert: {
+          id?: string
+          drive_id: string
+          user_id: string
+          joined_at?: string
+          status?: 'registered' | 'attended' | 'cancelled'
+          notes?: string | null
+        }
+        Update: {
+          status?: 'registered' | 'attended' | 'cancelled'
+          notes?: string | null
+        }
+      }
     }
     Views: {
       [_ in never]: never
@@ -150,3 +258,5 @@ export interface Database {
 export type Profile = Database['public']['Tables']['profiles']['Row']
 export type Report = Database['public']['Tables']['reports']['Row']
 export type Activity = Database['public']['Tables']['activities']['Row']
+export type Drive = Database['public']['Tables']['drive']['Row']
+export type DriveParticipant = Database['public']['Tables']['drive_participants']['Row']
