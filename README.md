@@ -186,7 +186,3 @@ If you find CleanFlow valuable:
 **Together, we can restore Mumbai's water bodies! 🌊**
 
 Made with ❤️ for a cleaner, healthier Mumbai
-
-
-
-This enhanced README includes proper formatting, badges, structured sections, visual appeal, and comprehensive information that makes your project more professional and accessible to potential contributors and users.
