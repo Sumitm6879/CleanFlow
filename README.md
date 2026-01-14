@@ -71,35 +71,6 @@ To create a sustainable ecosystem where technology empowers communities to monit
 - npm or yarn package manager
 - Supabase account
 
-### Installation
-
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/[username]/cleanflow-mumbai.git
-   cd cleanflow-mumbai
-   ```
-
-2. **Install dependencies**
-   ```bash
-   npm install
-   ```
-
-3. **Set up environment variables**
-   ```bash
-   cp .env.example .env.local
-   ```
-   Add your Supabase credentials to `.env.local`
-
-4. **Start the development server**
-   ```bash
-   npm start
-   ```
-
-5. **Open your browser**
-   Navigate to `http://localhost:3000`
-
-***
-
 ## 📱 Usage Guide
 
 ### For Citizens
